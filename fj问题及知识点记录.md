@@ -884,6 +884,10 @@ https://www.cnblogs.com/wuhan729/p/8601108.html
 　　4）通过Lock可以知道有没有成功获取锁，而synchronized却无法办到。
 　　5）Lock可以提高多个线程进行读操作的效率。
 
+### 深入理解Lock的底层实现原理
+
+
+
 ### ThreadLocal
 
 ThreadLocal作用、场景、原理         （内容较简单）
@@ -1656,9 +1660,7 @@ https://www.cnblogs.com/fsmly/p/11020641.html
 >
 > 被@PreDestroy修饰的方法会在服务器卸载Servlet的时候运行，并且只会被服务器调用一次，类似于Servlet的destroy()方法。被@PreDestroy修饰的方法会在destroy()方法之后运行，在Servlet被彻底卸载之前。
 
-### ehcache 是什么???
-
-### ### 理解 java.io.ObjectInputStream 和 java.io.ObjectOutputStream ？？？
+### 理解 java.io.ObjectInputStream 和 java.io.ObjectOutputStream ？？？
 
 java.io.ObjectOutputStream#annotateClass
 
@@ -3169,16 +3171,8 @@ https://blog.csdn.net/hsuxu/article/details/9472381
 
 [GC之详解CMS收集过程和日志分析](https://blog.csdn.net/weixin_30736301/article/details/99312120?utm_medium=distribute.pc_relevant.none-task-blog-BlogCommendFromMachineLearnPai2-1.channel_param&depth_1-utm_source=distribute.pc_relevant.none-task-blog-BlogCommendFromMachineLearnPai2-1.channel_param)
 
-___________
+## 线程池和信号量的区别？
 
-### lock的底层实现： 同步器？？？
-
-《java并发编程的艺术》  5.2
-
-类加载机制：
-线程池  
-
-线程池和信号量的区别？
 Semaphore和线程池的差异
 https://zhuanlan.zhihu.com/p/111038801
 
@@ -3217,8 +3211,6 @@ public static void testSemaphoreMutex() {
 
 4. Semaphore 的易错点
 使用Semophore时有一个非常容易犯错误的地方，即先release再acqure后会导致Semophore管理的虚拟许可额外新增一个.
-
-
 
 
 
@@ -3516,7 +3508,7 @@ nginx -t
 >注意：1、在以上配置中，server_name 可以任意取名。
 >
 >           2、主机B的访问方式通过A监听端口8081来代理，访问方式：http://192.168.1.167:8081
->                                    
+>                                            
 >           3、主机C的访问方式通过A监听端口8082来代理，访问方式：http://192.168.1.167:8082
 >
 >二、通过相同的listen，不同的server_name实现对B和C的访问，即通过不同的域名方式访问B和C，实现方式如下：
@@ -3932,235 +3924,6 @@ MQ的 exactly-once 阻塞队列。
 
 
 
-
-
-## kafka 专题    ###
-
-
-
-从**Apache Kafka** 重温文件高效读写  （这篇文章不是很懂？）
-
-https://blog.csdn.net/yjh314/article/details/78855193
-
-
-
-* [Kafka: 用于日志处理的分布式消息系统](https://zhuanlan.zhihu.com/p/97704127)
-
->为了避免日志损坏，Kafka将每个消息的CRC存储在日志中。如果代理上存在任何I / O错误，Kafka将运行恢复过程以删除带有不一致CRC的消息。在消息级别使用CRC还可以使我们在产生或使用消息之后检查网络错误。
->
->Kafka保证将来自单个分区的消息按顺序传递给消费者。但是，不能保证来自不同分区的消息的顺序。
-
-* [Kafka log的读写分析](http://www.daleizhou.tech/posts/log-fetch-produce.html)
-
->为了对某个具体Topic的读写的负载均衡，Kafka的一个Topic可以分为多个Partition，不同的Partition可以分布在不同的broker，方便的实现水平拓展，减轻读写瓶颈。通过前面几篇博文的分析我们知道正常情况下Kafka保证一条消息只发送到一个分区，并且一个分区的一条消息只能由Group下的唯一一个Consumer消费，如果想重复消费则可以加入一个新的组。
->
->熟悉Kafka的同学都知道，Kafka的消息的读写都是存放在log文件中。一个broker的log文件放在一个目录下，而不同的Partition对应一个子目录，发送到broker上的消息将会顺序的append到对应的Partition对应的log文件中。每个Partition对应的log文件可以看成是无限长、可以在文件末尾进行append数据的文件，加速写入速度。实际实现中，每个Partition对应的日志文件又被切分成多个Segment，这种切分的设计可以在数据的清理，控制索引文件大小等方面带来优势。
->
->　　因为分布式环境下的任何一个Broker都有宕机的风险，所以Kafka上每个Partition有可以设置多个副本，通过副本的主从选举，副本的主从同步等手段，保证数据的高可用，降低由于部分broker宕机带来的影响，当然为了达到这个目的，同一个Partition副本应该分布在不同的Broker、机架上，通过一定的分配算法来使得分布尽量分散。
->
->**Segment** 　下面我们来看一下TopicPartition的示意图。
->
->![](./img/Anatomy_of_a_topic.png)
->
->由上图我们可以看到，每个TopicPartition由一系列的Segment组成。这些Segment会在日志文件夹中有对应的日志文件、索引文件等。下面我们看某个Partition对应的log文件夹内容的示意文件列表:
->
->```shel
->log git:(master) ✗ ls
->00000000000000000000.index
->00000000000000000000.log
->00000000000000043023.index
->00000000000000043023.log
->00000000000000090023.index
->00000000000000090023.log
->```
->
->每个Segment都对应着base_offset.index,base_offset.log文件。这个base_offset代表这个Segment消息在整个消息中的基准偏移量，他会小于等于这个Segment中所有的消息的偏移，也严格大于前一个Segment中所有消息的偏移量。
->
->　　因为Kafka对数据的处理是抽象为在一个无限长的日志文件后进行追加操作。因此为了能迅速检索到某个指定offset对应的消息，Kafka对日志文件都进行了索引。每个日志的Segment相应地对应一个索引文件OffsetIndex。下面来看索引及消息在某个具体Segment的示意结构图:
->
->![](./img/SegmentIndexAndLog.png)
->
->从图上看每个日志的segment对应一个index文件。index文件是稀疏的，即并不是每一个Record都会对应index文件里的一条，这样的设计可以有效的减小index文件的大小，使得可以载入内存，在内存中进行比较运算，虽然可能不能直接根据index直接找到某一个record,但是可以先通过二分的形式找到不大于要检索的offset的那个index记录，然后再往后顺序遍历即可找到。较新版本的Kafka还给每个Segment会配置TimeStampIndex，与OffsetIndex结构类似，区别是TimeStampIndex组成为8字节的时间戳和4字节的location。
->
->Index的格式为8个字节组成一条记录，其中前4个字节标识消息在该Segment中的相对offset,后4个字节标识该消息在该Segment中的相对位置。
-
-* [Kafka消费组(consumer group)](https://www.cnblogs.com/huxi2b/p/6223228.html)  
-
-该文章对 kafka 的消费者部分内容讲得很清晰、通俗易懂。
-
->很多人在Kafka中国社区(替群主做个宣传，QQ号：162272557)提问时的开头经常是这样的：“我使用的kafka版本是2.10/2.11, 现在碰到一个奇怪的问题。。。。” 无意冒犯，但这里的2.10/2.11不是kafka的版本，而是编译kafka的Scala版本。Kafka的server端代码是由Scala语言编写的，目前Scala主流的3个版本分别是2.10、2.11和2.12。实际上Kafka现在每个PULL request都已经自动增加了这三个版本的检查。目前广泛使用kafka的版本应该是这三个大版本：0.8.x， 0.9.x和0.10.x。 这三个版本对于consumer和consumer group来说都有很大的变化，我们后面会详谈。
->
->**4.1 什么是rebalance？**
->
->rebalance 本质上是一种协议，规定了一个consumer group下的所有consumer如何达成一致来分配订阅topic的每个分区。比如某个group下有20个consumer，它订阅了一个具有100个分区的topic。正常情况下，Kafka平均会为每个consumer分配5个分区。这个分配的过程就叫rebalance。
->
->**4.2 什么时候rebalance？**
->
->这也是经常被提及的一个问题。rebalance的触发条件有三种：
->
->- 组成员发生变更(新consumer加入组、已有consumer主动离开组或已有consumer崩溃了——这两者的区别后面会谈到)
->- 订阅主题数发生变更——这当然是可能的，如果你使用了正则表达式的方式进行订阅，那么新建匹配正则表达式的topic就会触发rebalance
->- 订阅主题的分区数发生变更
->
->**4.4 谁来执行rebalance和consumer group管理？**
->
->Kafka提供了一个角色：coordinator来执行对于consumer group的管理。坦率说kafka对于coordinator的设计与修改是一个很长的故事。最新版本的coordinator也与最初的设计有了很大的不同。这里我只想提及两次比较大的改变。
->
->首先是0.8版本的coordinator，那时候的coordinator是依赖zookeeper来实现对于consumer group的管理的。Coordinator监听zookeeper的/consumers/<group>/ids的子节点变化以及/brokers/topics/<topic>数据变化来判断是否需要进行rebalance。group下的每个consumer都自己决定要消费哪些分区，并把自己的决定抢先在zookeeper中的/consumers/<group>/owners/<topic>/<partition>下注册。很明显，这种方案要依赖于zookeeper的帮助，而且每个consumer是单独做决定的，没有那种“大家属于一个组，要协商做事情”的精神。
->
->基于这些潜在的弊端，0.9版本的kafka改进了coordinator的设计，提出了group coordinator——每个consumer group都会被分配一个这样的coordinator用于组管理和位移管理。这个group coordinator比原来承担了更多的责任，比如组成员管理、位移提交保护机制等。当新版本consumer group的第一个consumer启动的时候，它会去和kafka server确定谁是它们组的coordinator。之后该group内的所有成员都会和该coordinator进行协调通信。显而易见，这种coordinator设计不再需要zookeeper了，性能上可以得到很大的提升。后面的所有部分我们都将讨论最新版本的coordinator设计。
->
->**4.5 如何确定coordinator？**
->
->上面简单讨论了新版coordinator的设计，那么consumer group如何确定自己的coordinator是谁呢？ 简单来说分为两步：
->
->- **确定consumer group位移信息写入__consumers_offsets的哪个分区 **。具体计算公式：
->  - 　　**__consumers_offsets partition# = Math.abs(groupId.hashCode() % groupMetadataTopicPartitionCount)  注意：groupMetadataTopicPartitionCount由offsets.topic.num.partitions指定，默认是50个分区。**
->- **该分区leader所在的broker就是被选定的coordinator **
->
->**4.9 Rebalance过程**
->
->终于说到consumer group执行rebalance的具体流程了。很多用户估计对consumer内部的工作机制也很感兴趣。下面就跟大家一起讨论一下。当然我必须要明确表示，rebalance的前提是coordinator已经确定了。
->
->总体而言，rebalance分为2步：Join和Sync
->
->1 Join， 顾名思义就是加入组。这一步中，所有成员都向coordinator发送JoinGroup请求，请求入组。一旦所有成员都发送了JoinGroup请求，coordinator会从中选择一个consumer担任leader的角色，并把组成员信息以及订阅信息发给leader——**注意leader和coordinator不是一个概念。leader负责消费分配方案的制定。**
->
->2 Sync，这一步leader开始分配消费方案，即哪个consumer负责消费哪些topic的哪些partition。一旦完成分配，leader会将这个方案封装进SyncGroup请求中发给coordinator，非leader也会发SyncGroup请求，只是内容为空。coordinator接收到分配方案之后会把方案塞进SyncGroup的response中发给各个consumer。这样组内的所有成员就都知道自己应该消费哪些分区了。
->
->还是拿几张图来说明吧，首先是加入组的过程:
->
->![image-20200617213709848](/Users/allen/Library/Application Support/typora-user-images/image-20200617213709848.png)
->
->值得注意的是， 在coordinator收集到所有成员请求前，它会把已收到请求放入一个叫purgatory(炼狱)的地方。记得国内有篇文章以此来证明kafka开发人员都是很有文艺范的，写得也是比较有趣，有兴趣可以去搜搜。
->然后是分发分配方案的过程，即SyncGroup请求：
->
->![image-20200617213803830](/Users/allen/Library/Application Support/typora-user-images/image-20200617213803830.png)
->
->**注意！！ consumer group的分区分配方案是在客户端执行的！**Kafka将这个权利下放给客户端主要是因为这样做可以有更好的灵活性。比如这种机制下我可以实现类似于Hadoop那样的机架感知(rack-aware)分配方案，即为consumer挑选同一个机架下的分区数据，减少网络传输的开销。Kafka默认为你提供了两种分配策略：range和round-robin。由于这不是本文的重点，这里就不再详细展开了，你只需要记住你可以覆盖consumer的参数：partition.assignment.strategy来实现自己分配策略就好了。
-
-
-
-* [详解Kafka中的分区分配](https://juejin.im/post/5d1df788f265da1b8811fa7b)      讲得很笼统
-
->当遇到“分区分配”这个字眼的时候，一定要记住有三处地方，分别是生产者发送消息、消费者消费消息和创建主题。虽然这三处的对应操作都可以被称之为“分区分配”，但是其实质上所包含的内容却并不相同。
->
->生产者的分区分配是指为每条消息指定其所要发往的分区，消费者中的分区分配是指为消费者指定其可以消费消息的分区，而这里的分区分配是指为集群制定创建主题时的分区副本分配方案，即在哪个broker中创建哪些分区的副本。分区分配是否均衡会影响到Kafka整体的负载均衡，具体还会牵涉到优先副本等概念。
-
-* sgg大数据技术之kafka.pdf 学习笔记
-
->**生产者分区的原则**
-> 我们需要将 producer 发送的数据封装成一个 ProducerRecord 对象。
->
->(1)指明 partition 的情况下，直接将指明的值直接作为 partiton 值;
->
->(2)没有指明 partition 值但有 key 的情况下，将 key 的 hash 值与 topic 的 partition 数进行取余得到 partition 值;
->
->(3)既没有 partition 值又没有 key 值的情况下，第一次调用时随机生成一个整数(后 面每次调用在这个整数上自增)，将这个值与 topic 可用的 partition 总数取余得到 partition 值，也就是常说的 round-robin 算法。
->
->**消费者分区的原则**
->
->一个 consumer group 中有多个 consumer，一个 topic 有多个 partition，所以必然会涉及 到 partition 的分配问题，即确定那个 partition 由哪个 consumer 来消费。
->
->Kafka 有两种分配策略，一是 RoundRobin，一是 Range。
->
->3.4 Kafka 高效读写数据
->
-> 1)顺序写磁盘
->
->Kafka 的 producer 生产数据，要写入到 log 文件中，写的过程是一直追加到文件末端， 为顺序写。官网有数据表明，同样的磁盘，顺序写能到 600M/s，而随机写只有 100K/s。这
->
->与磁盘的机械机构有关，顺序写之所以快，是因为其省去了大量磁头寻址的时间。
->
->2)零复制技术
->
->![image-20200618120809632](/Users/allen/Library/Application Support/typora-user-images/image-20200618120809632.png)
->
->
-
-
-
-* [深入分析Kafka架构（三）：消费者消费方式、三种分区分配策略、offset维护](https://my.oschina.net/u/4262150/blog/3274346)
-
->当然让消费者去pull数据自然也是有缺点的。kafka也是这样，采用pull模式后，如果kafka没有数据，消费者可能会陷入循环中，一直返回空数据。为了解决这个问题，Kafka消费者在消费数据时会传入一个时长参数timeout，如果当前没有数据可供消费，消费者会等待一段时间之后再返回，这段时长即为timeout。
->
->**kafka提供了消费者客户端参数partition.assignment.strategy用来设置消费者与订阅主题之间的分区分配策略。默认情况下，此参数的值为：org.apache.kafka.clients.consumer.RangeAssignor，即采用range分配策略。除此之外，Kafka中还提供了roundrobin分配策略和sticky分区分配策略。消费者客户端参数partition.asssignment.strategy可以配置多个分配策略，把它们以逗号分隔就可以了。**
->
->##### 3.2、Range分配策略
->
->Range分配策略是**面向每个主题**的，首先会对同一个主题里面的分区按照序号进行排序，并把消费者线程按照字母顺序进行排序。然后**用分区数除以消费者线程数量来判断每个消费者线程消费几个分区。如果除不尽，那么前面几个消费者线程将会多消费一个分区**。
->
->缺点：
->
->一般在咱们实际生产环境下，会有多个主题，我们假设有3个主题（T1，T2，T3），都有7个分区，那么按照咱们上面这种Range分配策略分配后的消费结果如下：
->
->| 消费者线程 | 对应消费的分区序号t                         |
->| ---------- | ------------------------------------------- |
->| C0-0       | T1（0，1，2），T2（0，1，2），T3（0，1，2） |
->| C1-0       | T1（3，4），T2（3，4），T3（3，4）          |
->| C1-1       | T1（5，6），T2（5，6），T3（5，6）          |
->
->**我们可以发现，在这种情况下，C0-0消费线程要多消费3个分区，这显然是不合理的，其实这就是Range分区分配策略的缺点。**
->
->##### 3.3、RoundRobin分配策略
->
->RoundRobin策略的原理是将消费组内所有消费者以及消费者所订阅的所有topic的partition按照字典序排序，然后通过轮询算法逐个将分区以此分配给每个消费者。
->
->使用RoundRobin分配策略时会出现两种情况：
->
->1. 如果同一消费组内，所有的消费者订阅的消息都是相同的，那么 RoundRobin 策略的分区分配会是均匀的。
->2. 如果同一消费者组内，所订阅的消息是不相同的，那么在执行分区分配的时候，就不是完全的轮询分配，有可能会导致分区分配的不均匀。如果某个消费者没有订阅消费组内的某个 topic，那么在分配分区的时候，此消费者将不会分配到这个 topic 的任何分区。
->
->因此在使用RoundRobin分配策略时，为了保证得均匀的分区分配结果，需要满足两个条件：
->
->1. 同一个消费者组里的每个消费者订阅的主题必须相同；
->2. 同一个消费者组里面的所有消费者的num.streams必须相等。
->
->如果无法满足，那最好不要使用RoundRobin分配策略。
->
->##### 3.4、Sticky分配策略
->
->最后介绍一下**Sticky分配策略，这种分配策略是在kafka的0.11.X版本才开始引入的，是目前最复杂也是最优秀的分配策略。**
->
->Sticky分配策略的原理比较复杂，它的设计主要实现了两个目的：
->
->1. 分区的分配要尽可能的均匀；
->2. 分区的分配尽可能的与上次分配的保持相同。
->
->如果这两个目的发生了冲突，优先实现第一个目的。
->
->我们举例进行分析：比如我们有3个消费者（C0，C1，C2），都订阅了2个主题（T0 和 T1）并且每个主题都有 3 个分区(p0、p1、p2)，那么所订阅的所有分区可以标识为T0p0、T0p1、T0p2、T1p0、T1p1、T1p2。此时使用Sticky分配策略后，得到的分区分配结果如下：
->
->| 消费者线程 | 对应消费的分区序号 |
->| ---------- | ------------------ |
->| C0         | T0p0、T1p0         |
->| C1         | T0p1、T1p1         |
->| C2         | T0p2、T1p2         |
->
->哈哈，这里可能会惊呼，怎么和前面RoundRobin分配策略一样，其实底层实现并不一样。这里假设C2故障退出了消费者组，然后需要对分区进行再平衡操作，如果使用的是RoundRobin分配策略，它会按照消费者C0和C1进行重新轮询分配，再平衡后的结果如下：
->
->| 消费者线程 | 对应消费的分区序号 |
->| ---------- | ------------------ |
->| C0         | T0p0、T0p2、T1p1   |
->| C1         | T0p1、T1p0、T1p2   |
->
->但是如果使用的是Sticky分配策略，再平衡后的结果会是这样：
->
->| 消费者线程 | 对应消费的分区序号 |
->| ---------- | ------------------ |
->| C0         | T0p0、T1p0、T0p2   |
->| C1         | T0p1、T1p1、T1p2   |
->
->看出区别了吗？Stiky分配策略保留了再平衡之前的消费分配结果，并将原来消费者C2的分配结果分配给了剩余的两个消费者C0和C1，最终C0和C1的分配还保持了均衡。这时候再体会一下sticky（翻译为：粘粘的）这个词汇的意思，是不是豁然开朗了。
-
-kafka 问题？
-
-kafka consumer 端的分区策略需要再深入研究？
-
-kafka brocker 端的分配策略？
-
-partition leader 的选取过程？
-
 ## PRC 专题     ####
 
 * 既然有 HTTP 请求，为什么还要用 RPC 调用？
@@ -4546,11 +4309,9 @@ docker 挂载多个主机文件夹作为数据卷,挂载几个主机目录就用
 
 [docker 安装](https://yeasy.gitbook.io/docker_practice/install/mac)
 
-## ES专题 ###
+##  ###
 
-
-
-## GIT 专题
+# GIT 专题
 
 ### git tag
 
@@ -5002,19 +4763,13 @@ https://blog.csdn.net/servermanage/article/details/103020846
 - **删除远程分支**
   git push origin --delete dev 【git push origin --参数 远程分支名称】
 
-## [git cherry-pick 教程](http://www.ruanyifeng.com/blog/2020/04/git-cherry-pick.html)
+### [git cherry-pick 教程](http://www.ruanyifeng.com/blog/2020/04/git-cherry-pick.html)
 
 >对于多分支的代码库，将代码从一个分支转移到另一个分支是常见需求。
 >
 >这时分两种情况。一种情况是，你需要另一个分支的所有代码变动，那么就采用合并（`git merge`）。另一种情况是，你只需要部分代码变动（某几个提交），这时可以采用 Cherry pick。
 
-
-
-_________
-
-
-
-## maven 专题(下设三级标题)
+# maven 专题(下设三级标题)
 
 ### maven-idea-plugin
 
@@ -5522,11 +5277,11 @@ maven中三种classpath
 
 **自测如果把A项目的sdk模块传到远程仓库的话，B项目就可以依赖了。**
 
-## Netty 专题
+# Netty 专题
 
 ## [Netty的高低水位](https://zhuanlan.zhihu.com/p/272840446)
 
->假如我们的底层使用Netty作为网络通信框架,业务流程在将业务数据发送到对端之前,实际先要将数据发送到Netty的缓冲区中,然后再从Netty的缓冲区发送到TCP的缓冲区,最后再到对端.
+>假如我们的底层使用Netty作为网络通信框架,业务流程在将业务数据发送到对端之前,实际先要将发送到Netty的缓冲区中,然后再从Netty的缓冲区发送到TCP的缓冲区,最后再到对端.
 >
 >![img](fj问题及知识点记录.assets/v2-c67cf9acd2a79444d013a007904a783c_720w.jpg)
 >
@@ -5536,9 +5291,7 @@ maven中三种classpath
 >
 >当Netty缓冲区中的数据写入到TCP缓冲区之后,Netty缓冲区的数据量变少,当低于低水位值的时候,就设置通过(Channel)可写状态.
 
-
-
-## Linux 专题
+# Linux 专题
 
 ### h3 linux shell命令行选项与参数用法详解
 
@@ -6274,7 +6027,13 @@ public class ProtostuffTest {
 }  
 ```
 
+## [Google Protobuf ByteString vs. Byte[\]](https://stackoverflow.com/questions/29018411/google-protobuf-bytestring-vs-byte)
 
+**A `ByteString` gives you the ability to perform more operations on the underlying data without having to copy the data into a new structure.** For instance, if you wanted to provide a subset of `bytes` in a `byte[]` to another method, you would need to supply it with a start index and an end index. You can also concatenate `ByteStrings` without having to create a new data structure and manually copy the data.
+
+However, with a `ByteString` you can give the method a subset of that data without the method knowing anything about the underlying storage. Just like a a substring of a normal String.
+
+**A String is for representing text and is *not* a good way to store binary data (as not all binary data has a textual equivalent unless you encode it in a manner that does: e.g. hex or Base64).**
 
 # 实战-逻辑删除时的唯一约束
 
@@ -6405,7 +6164,7 @@ public class ProtostuffTest {
 >
 >(6)HTTPOnly 属性 ：用于防止客户端脚本通过document.cookie属性访问Cookie，有助于保护Cookie不被跨站脚本攻击窃取或篡改。但是，HTTPOnly的应用仍存在局限性，一些浏览器可以阻止客户端脚本对Cookie的读操作，但允许写操作；此外大多数浏览器仍允许通过[XMLHTTP](https://baike.baidu.com/item/XMLHTTP/481421)对象读取[HTTP](https://baike.baidu.com/item/HTTP/243074)响应中的Set-Cookie头 [3] 。
 
-# idea 专题
+# idea 专题(h1)
 
 ## IDEA添加子Module的正确姿势
 
@@ -6428,6 +6187,10 @@ https://blog.csdn.net/CF779/article/details/112269347
 >2. 找到**lgnored file**，**把右边已选中的选项取消勾选**，然后点击 ok
 >     ![alt](fj问题及知识点记录.assets/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0NGNzc5,size_16,color_FFFFFF,t_70.png)
 >3. 建议再点击右上角Maven中的刷新一下，这样pom.xml 文件就被变回来了哦
+
+## idea for Mac try catch 快捷键
+
+option+command+t
 
 # UML 专题
 
@@ -6503,23 +6266,105 @@ https://www.jianshu.com/p/c3ae61787a42
 >
 >是的，您可以只使用`@ExtendWith(SpringExtension.class)`，但是如果您的测试中没有涉及Spring测试框架功能，那么您可能只想使用`@ExtendWith(MockitoExtension.class)`。
 
+## [Mockito中的@Mock和@Spy如何使用 ](https://www.cnblogs.com/zendwang/p/mockito-mock-spy-usage.html)
+
+>### 相同点
+>
+>spy和mock生成的对象不受spring管理
+>
+>### 不同点
+>
+>**1.默认行为不同**
+>
+>对于未指定mock的方法，spy默认会调用真实的方法，有返回值的返回真实的返回值，而mock默认不执行，有返回值的，默认返回null
+>
+>**2.使用方式不同
+>
+>**Spy中用when...thenReturn私有方法总是被执行，预期是私有方法不应该执行，因为很有可能私有方法就会依赖真实的环境。
+>Spy中用doReturn..when才会不执行真实的方法。
+>
+>mock中用 when...thenReturn 私有方法不会执行*。
+>
+>**3.代码统计覆盖率不同
+>**@spy使用的真实的对象实例，调用的都是真实的方法，所以通过这种方式进行测试，在进行sonar覆盖率统计时统计出来是有覆盖率；
+>@mock出来的对象可能已经发生了变化，调用的方法都不是真实的，在进行sonar覆盖率统计时统计出来的Calculator类覆盖率为0.00%。
 
 
 
+# 设计模式专题
+
+## 工厂模式
+
+### 抽象工厂模式和工厂模式的区别？
 
 
 
+作者：名姓
+链接：https://www.zhihu.com/question/20367734/answer/115807228    （清晰、简洁）
 
 
 
+### **工厂模式可以分为三类：**
+
+- 简单工厂模式（Simple Factory）
+- [工厂方法模式](https://www.zhihu.com/search?q=工厂方法模式&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1089721250})（Factory Method）
+- 抽象工厂模式（Abstract Factory）
+
+这三种工厂模式在设计模式的分类中都属于**创建型模式**，三种模式从上到下逐步抽象。
+
+### **创建型模式**
+
+创建型模式(Creational Pattern)对类的实例化过程进行了抽象，能够将软件模块中对象的创建和对象的使用分离。为了使软件的结构更加清晰，外界对于这些对象只需要知道它们共同的接口，而不清楚其具体的实现细节，使整个系统的设计更加符合单一职责原则。
+
+创建型模式隐藏了类的实例的创建细节，通过隐藏对象如何被创建和组合在一起达到使整个系统独立的目的。
+
+工厂模式是创建型模式中比较重要的。工厂模式的主要功能就是帮助我们实例化对象。之所以名字中包含工厂模式四个字，是因为对象的实例化过程是通过工厂实现的，是用工厂代替new操作的。
+
+### 工厂模式适用场景
+
+不管是简单工厂模式，工厂方法模式还是抽象工厂模式，他们具有类似的特性，所以他们的适用场景也是类似的。
+
+首先，作为一种创建类模式，在任何需要生成**复杂对象**的地方，都可以使用工厂方法模式。有一点需要注意的地方就是复杂对象适合使用工厂模式，而简单对象，特别是只需要通过new就可以完成创建的对象，无需使用工厂模式。如果使用工厂模式，就需要引入一个工厂类，会增加系统的复杂度。
+
+其次，工厂模式是一种典型的**解耦模式**，[迪米特法则](https://www.zhihu.com/search?q=迪米特法则&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1089721250})在工厂模式中表现的尤为明显。假如调用者自己组装产品需要增加依赖关系时，可以考虑使用工厂模式。将会大大降低对象之间的耦合度。
+
+再次，由于工厂模式是依靠抽象架构的，它把实例化产品的任务交由实现类完成，**扩展性比较好**。也就是说，当需要系统有比较好的扩展性时，可以考虑工厂模式，不同的产品用不同的实现工厂来组装。
+
+>**简单工厂模式**
+>
+>简单工厂模式不是23种里的一种，简而言之，就是有一个专门生产某个产品的类。  比如下图中的鼠标工厂，专业生产鼠标，给参数0，生产[戴尔鼠标](https://www.zhihu.com/search?q=戴尔鼠标&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A115807228})，给参数1，生产惠普鼠标。  ![img](fj问题及知识点记录.assets/09067f878916c0e4377bfadc82afc248_720w-20220321145309082.jpg)![img](fj问题及知识点记录.assets/09067f878916c0e4377bfadc82afc248_720w.jpg)
+>**工厂模式**  
+>工厂模式也就是鼠标工厂是个父类，有生产鼠标这个接口。  戴尔鼠标工厂，惠普鼠标工厂继承它，可以分别生产戴尔鼠标，惠普鼠标。  生产哪种鼠标不再由参数决定，而是创建鼠标工厂时，由戴尔鼠标工厂创建。  后续直接调用鼠标工厂.生产鼠标()即可  ![img](fj问题及知识点记录.assets/69ab924585b751cb9e7bc7b7f9f2179b_720w.jpg)![img](fj问题及知识点记录.assets/69ab924585b751cb9e7bc7b7f9f2179b_720w-20220321145309075.jpg)
+>**抽象工厂模式**  
+>抽象工厂模式也就是不仅生产鼠标，同时生产键盘。  也就是PC厂商是个父类，有生产鼠标，生产键盘两个接口。  戴尔工厂，惠普工厂继承它，可以分别生产戴尔鼠标+[戴尔键盘](https://www.zhihu.com/search?q=戴尔键盘&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A115807228})，和惠普鼠标+惠普键盘。  创建工厂时，由戴尔工厂创建。  后续工厂.生产鼠标()则生产戴尔鼠标，工厂.生产键盘()则生产戴尔键盘。  ![img](fj问题及知识点记录.assets/ab2a90cfcc7a971b1e3127d1f531a486_720w-20220321145309031.jpg)![img](fj问题及知识点记录.assets/ab2a90cfcc7a971b1e3127d1f531a486_720w.jpg)
+>***在抽象工厂模式中，假设我们需要增加一个工厂\***
+>假设我们增加华硕工厂，则我们需要增加华硕工厂，和戴尔工厂一样，继承PC厂商。  之后创建[华硕鼠标](https://www.zhihu.com/search?q=华硕鼠标&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A115807228})，继承鼠标类。创建华硕键盘，继承键盘类。  即可。  ![img](fj问题及知识点记录.assets/e8184a3c6b3463338d85c329004d7c64_720w.jpg)![img](fj问题及知识点记录.assets/e8184a3c6b3463338d85c329004d7c64_720w-20220321145309089.jpg)
+>***在抽象工厂模式中，假设我们需要增加一个产品\***
+>假设我们增加耳麦这个产品，则首先我们需要增加耳麦这个父类，再加上[戴尔耳麦](https://www.zhihu.com/search?q=戴尔耳麦&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A115807228})，惠普耳麦这两个子类。  之后在PC厂商这个父类中，增加生产耳麦的接口。最后在戴尔工厂，惠普工厂这两个类中，分别实现生产戴尔耳麦，惠普耳麦的功能。  以上。  ![img](fj问题及知识点记录.assets/0f20f50524336fa9634e19237ce0ec7e_720w.jpg)![img](fj问题及知识点记录.assets/0f20f50524336fa9634e19237ce0ec7e_720w-20220321145309082.jpg)
+>
+>
+>
 
 
 
+作者：贾不假
+链接：https://www.zhihu.com/question/20367734/answer/1089721250
+来源：知乎
+著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
 
+### **2.3 工厂方法模式适用场景**
 
+工厂方法模式和简单工厂模式虽然都是通过工厂来创建对象，他们之间最大的不同是——工厂方法模式在设计上完全完全符合“**开闭原则**”。
 
+在以下情况下可以使用工厂方法模式：
 
+- **一个类不知道它所需要的对象的类**：在工厂方法模式中，客户端不需要知道具体产品类的类名，只需要知道所对应的工厂即可，具体的产品对象由具体工厂类创建；客户端需要知道创建具体产品的工厂类。
+- **一个类通过其子类来指定创建哪个对象**：在工厂方法模式中，对于抽象工厂类只需要提供一个创建产品的接口，而由其子类来确定具体要创建的对象，利用面向对象的多态性和里氏代换原则，在程序运行时，子类对象将覆盖父类对象，从而使得系统更容易扩展。
+- **将创建对象的任务委托给多个工厂子类中的某一个，客户端在使用时可以无须关心是哪一个工厂子类创建产品子类，需要时再动态指定，可将具体工厂类的类名存储在配置文件或数据库中。**
 
+### **三、抽象工厂模式**
+
+工厂方法模式通过引入工厂等级结构，解决了简单工厂模式中工厂类职责太重的问题，但**由于工厂方法模式中的每个工厂只生产一类产品，可能会导致系统中存在大量的工厂类，势必会增加系统的开销。此时，我们可以考虑将一些相关的产品组成一个“产品族”，由同一个工厂来统一生产，这就是抽象工厂模式的基本思想。**
 
 
 
