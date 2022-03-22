@@ -6192,6 +6192,16 @@ https://blog.csdn.net/CF779/article/details/112269347
 
 option+command+t
 
+## [解决了一个IDA编译代码时maven总是自动执行单元测试的问题](https://www.cnblogs.com/kingstarer/p/13977933.html)
+
+通过debug日志分析，我发现选中“闪电”按钮，idea编译时，是给代码增加一个-DskipTests=true的参数。
+
+>该篇文章个别地方说得不准确：
+>
+>-DskipTests，不执行测试用例，但编译测试用例类生成相应的class文件至target/test-classes下。该配置命令行优先级>pom配置的优先级。
+>
+>-Dmaven.test.skip=true，不执行测试用例，也不编译测试用例类。**该配置 pom 中的配置优先级>mvn 命令行的优先级。**
+
 # UML 专题
 
 ## 绘制流程图中的注意事项
