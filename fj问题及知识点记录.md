@@ -5706,13 +5706,143 @@ spawn与except组合可达到远程登录设备执行命令的作用
 
 理解 httpClientPool，jdcp Pool，Apache commons-pool2。
 
-[Apache commons-pool2-2.4.2源码学习笔记](https://blog.csdn.net/zilong_zilong/article/details/78556281)
+### [Apache commons-pool2-2.4.2源码学习笔记](https://blog.csdn.net/zilong_zilong/article/details/78556281)
 
 >-  **PooledObjectFactory/KeyedPooledObjectFactory**：是两个**接口，作用都是产生PooledObject的工厂**，定义了如何makeObject创建、destroyObject销毁、validateObject校验、activateObject激活PooledObject对象，**使用Apache commons-pool2的使用者需要自己实现这个接口**
 >-  **PooledObject**：是一个**接口**，定义了getCreateTime获取PooledObject创建时间，getActiveTimeMillis获取PooledObject处于激活状态的时间，getIdleTimeMillis获取PooledObject空闲时间，getLastBorrowTime获取PooledObject最近借出时间，getLastReturnTime获取PooledObject最近归还时间，getLastUsedTime获取PooledObject最近使用时间。**目前Apache commons-pool2提供了2个默认实现DefaultPooledObject和PooledSoftReference，一般使用DefaultPooledObject即可**
 >-  **ObjectPool/KeyedObjectPool**：是两个**接口，作用都是管理池里面的PooledObject**，borrowObject借出PooledObject，returnObject归还PooledObject，invalidateObject调用PooledObjectFactory销毁PooledObject，addObject调用PooledObjectFactory创建PooledObject，getNumIdle给出PooledObject空闲个数，getNumActive给出PooledObject激活的个数，**使用Apache commons-pool2的使用者可以使用默认的5个实现(SoftReferenceObjectPool GenericObjectPool ProxiedObjectPool GenericKeyedObjectPool ProxiedKeyedObjectPool)，也可以自己实现**
 >
 >对象池的原理都差不多，基本一通全通，可以针对性的去阅读你常用的对象池（数据库连接池、HTTPclient连接池等等）源代码，对自己来说是一种技能升华。
+
+### [轻量级的对象池](https://www.iteye.com/blog/cywhoyi-1954393) 该篇文章重要性在于提供了自己实现一个轻量级对象池的思路
+
+>运用的场景：
+>
+>* 高频率的运用同一的资源
+>
+>* 对象大且很消耗内存（DB连接）
+>
+>* 需要长时间的初始化
+>
+>* IO消耗大
+>
+>* 对象非线程安全
+>
+>Apache Commons Pool 提供其轻量级的作用，不过它并未使用JDK1.5之后的Execute的框架，这是我觉得可能比较可惜的，就如同Proxool跟Boncp比较，性能指标提升最大一个就是分区和使用Execute、Guava等性能提升比较大的工具包。
+>
+>```java
+>import java.util.concurrent.ConcurrentLinkedQueue;  
+>import java.util.concurrent.Executors;  
+>import java.util.concurrent.ScheduledExecutorService;  
+>import java.util.concurrent.TimeUnit;  
+>  
+>public abstract class ObjectPool<T> {  
+>    private ConcurrentLinkedQueue<T> pool;  
+>  
+>    private ScheduledExecutorService executorService;  
+>  
+>    /** 
+>     * Creates the pool. 
+>     *  
+>     * @param minIdle 
+>     *            初始化最小的对象池中对象创建数量 
+>     */  
+>    public ObjectPool(final int minIdle) {  
+>        // initialize pool  
+>        initialize(minIdle);  
+>    }  
+>  
+>    /** 
+>     * Pool创建 
+>     *  
+>     * @param minIdle 
+>     *            最小的数量 
+>     * @param maxIdle 
+>     *            最大数量 
+>     * @param validationInterval 
+>     *            检查最大/最小的池中的对象的频率 
+>     */  
+>    public ObjectPool(final int minIdle, final int maxIdle,  
+>            final long validationInterval) {  
+>        // initialize pool  
+>        initialize(minIdle);  
+>  
+>        // check pool conditions in a separate thread  
+>        executorService = Executors.newSingleThreadScheduledExecutor();  
+>        executorService.scheduleWithFixedDelay(new Runnable() {  
+>            @Override  
+>            public void run() {  
+>                int size = pool.size();  
+>                if (size < minIdle) {  
+>                    int sizeToBeAdded = minIdle - size;  
+>                    for (int i = 0; i < sizeToBeAdded; i++) {  
+>                        pool.add(createObject());  
+>                    }  
+>                } else if (size > maxIdle) {  
+>                    int sizeToBeRemoved = size - maxIdle;  
+>                    for (int i = 0; i < sizeToBeRemoved; i++) {  
+>                        pool.poll();  
+>                    }  
+>                }  
+>            }  
+>        }, validationInterval, validationInterval, TimeUnit.SECONDS);  
+>    }  
+>  
+>    /** 
+>     * 获取对象，如果没有，那就创建且返回 
+>     *  
+>     * @return T borrowed object 
+>     */  
+>    public T borrowObject() {  
+>        T object;  
+>        if ((object = pool.poll()) == null) {  
+>            object = createObject();  
+>        }  
+>  
+>        return object;  
+>    }  
+>  
+>    /** 
+>     * Returns object back to the pool. 
+>     *  
+>     * @param object 
+>     *            object to be returned 
+>     */  
+>    public void returnObject(T object) {  
+>        if (object == null) {  
+>            return;  
+>        }  
+>  
+>        this.pool.offer(object);  
+>    }  
+>  
+>    /** 
+>     * Shutdown this pool. 
+>     */  
+>    public void shutdown() {  
+>        if (executorService != null) {  
+>            executorService.shutdown();  
+>        }  
+>    }  
+>  
+>    /** 
+>     * Creates a new object. 
+>     *  
+>     * @return T new object 
+>     */  
+>    protected abstract T createObject();  
+>  
+>    private void initialize(final int minIdle) {  
+>        pool = new ConcurrentLinkedQueue<T>();  
+>  
+>        for (int i = 0; i < minIdle; i++) {  
+>            pool.add(createObject());  
+>        }  
+>    }  
+>}  
+>```
+>
+>
 
 ## java 并发包中的容器
 
@@ -5771,13 +5901,13 @@ spawn与except组合可达到远程登录设备执行命令的作用
 
 #### ConcurrentLinkedQueue
 
+无锁的设计
+
 ##### Java并发编程之ConcurrentLinkedQueue详解 (java 并发编程的艺术  方腾飞 书中内容)
 
 https://blog.csdn.net/qq_38293564/article/details/80798310
 
->
->
->
+
 
 ## java 实战
 
@@ -5871,7 +6001,11 @@ https://blog.csdn.net/qq_38293564/article/details/80798310
 >- for non-object-valued fields present in both objects, the field found in the second object must be used.
 >- for object-valued fields present in both objects, the object values should be recursively merged according to these same rules.
 
-# [Protobuf与JAVA](https://blog.csdn.net/joeyon1985/article/details/78428232)
+
+
+# 序列化
+
+## [Protobuf与JAVA](https://blog.csdn.net/joeyon1985/article/details/78428232)
 
 >我们在开发一些RPC调用的程序时，通常会涉及到对象的序列化/反序列化的问题，比如一个“Person”对象从Client端通过TCP方式发送到Server端；因为TCP协议(UDP等这种低级协议)只能发送字节流，所以需要应用层将Java对象序列化成字节流，数据接收端再反序列化成Java对象即可。“序列化”一定会涉及到编码（encoding，format），目前我们可选择的编码方式：
 >
@@ -6035,6 +6169,239 @@ However, with a `ByteString` you can give the method a subset of that data witho
 
 **A String is for representing text and is *not* a good way to store binary data (as not all binary data has a textual equivalent unless you encode it in a manner that does: e.g. hex or Base64).**
 
+## Kryo
+
+### [序列化-Kryo的使用详解](https://blog.csdn.net/w727655308/article/details/121879000)
+
+对 Kryo 的使用方式，常见 api 的介绍 比较清晰，容易理解。
+
+>## 1. 简单使用
+>
+>```java
+>public static byte[] serialize(UserDto dto) {
+>		Kryo kryo = new Kryo();
+>		kryo.register(UserDto.class);
+>		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+>		Output output = new Output(bos);
+>		kryo.writeObject(output,dto);//写入null时会报错
+>		output.close();
+>		return bos.toByteArray();
+>}
+>
+> public static UserDto deserialize(byte[] bytes) {
+>		Kryo kryo = new Kryo();
+>		kryo.register(UserDto.class);
+>		ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
+>		Input input = new Input(bis);
+>		UserDto userDto = kryo.readObject(input, UserDto.class);//读出null时会报错
+>		input.close();
+>		return userDto;
+>	}
+>
+>```
+>
+>正常情况下, 序列化类必须包含无参构造.
+>
+>## 2. 两种读写方式
+>
+>根据是否写入class类型分为两种方式, 这里特别指出这里的的class指的是读写对象的class, 如果读写的是有嵌套类型对象,则不管采用哪种方式, 子类型class都会序列化.
+>
+>### 2.1 只写实例信息
+>
+>- 知道class且对象不为null
+>
+>```java
+>kryo.writeObject(output, someObject);
+>    // ...
+>SomeClass someObject = kryo.readObject(input, SomeClass.class);
+>
+>```
+>
+>- 知道class且对象可能为null
+>
+>```java
+>kryo.writeObjectOrNull(output, someObject);
+>    // ...
+>SomeClass someObject = kryo.readObjectOrNull(input, SomeClass.class);
+>
+>```
+>
+>### 2.2 同时写入class类型和实例信息
+>
+>class 未知且对象可能为null, 但这种场景, 会多占用空间. 这种方式是我们在RPC中应当使用的方式
+>
+>```java
+>kryo.writeClassAndObject(output, object);
+>// ...
+>Object object = kryo.readClassAndObject(input);
+>if (object instanceof SomeClass) {
+>  // ...
+>}
+>
+>```
+>
+>## 3 相关配置参数
+>
+>- 类注册
+>
+>kryo支持通过类注册, 注册会给每一个class一个int类型的Id相关联，这显然比类名称高效，但同时要求反序列化的时候的Id必须与序列化过程中一致。这意味着注册的顺序非常重要。
+>
+>但是由于现实原因，同样的代码，同样的Class在不同的机器上注册编号任然不能保证一致，所以多机器部署时候反序列化可能会出现问题。所以kryo默认会开启类注册(version:5.0.2)，可以通过kryo.setRegistrationRequired(false)关闭, 关闭后Kryo会根据类型去loadClass关联
+>
+>```java
+>kryo.setRegistrationRequired(false);//一般设置为false
+>```
+>
+>- 循环引用检测
+>
+>对循环引用的支持，可以有效防止栈内存溢出，kryo默认会打开这个属性。当你确定不会有循环引用发生的时候，可以通过`kryo.setReferences(false);` 关闭循环引用检测，从而提高一些性能。
+>
+>```java
+>kryo.setRegistrationRequired(true);//大多数情况下，请保持kryo.setReferences(true)
+>```
+>
+>- 实例化器
+>
+>```java
+>kryo.setInstantiatorStrategy(new Kryo.DefaultInstantiatorStrategy(
+>                    new StdInstantiatorStrategy()));
+>```
+>
+>上面这句话显式指定了实例化器。
+>
+>在一些依赖了kryo的开源软件中，可能由于实例化器指定的问题而抛出空指针异常。例如hive的某些版本中，默认指定了StdInstantiatorStrategy。
+>
+>```java
+>public static ThreadLocal<Kryo> runtimeSerializationKryo = new ThreadLocal<Kryo>() {
+>    @Override
+>    protected synchronized Kryo initialValue() {
+>      Kryo kryo = new Kryo();
+>      kryo.setClassLoader(Thread.currentThread().getContextClassLoader());
+>      kryo.register(java.sql.Date.class, new SqlDateSerializer());
+>      kryo.register(java.sql.Timestamp.class, new TimestampSerializer());
+>      kryo.register(Path.class, new PathSerializer());
+>      kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
+>      ......
+>      return kryo;
+>    };
+>  };
+>
+>```
+>
+>而StdInstantiatorStrategy在是依据JVM version信息及JVM vendor信息创建对象的，可以不调用对象的任何构造方法创建对象。那么例如碰到ArrayList这样的对象时候，就会出问题。观察一下ArrayList的源码：
+>
+>```java
+>public ArrayList() {
+>        this.elementData = DEFAULTCAPACITY_EMPTY_ELEMENTDATA;
+>    }
+>
+>```
+>
+>既然没有调用构造器，那么这里elementData会是NULL，那么在调用类似ensureCapacity方法时，就会抛出一个异常。
+>
+>```java
+> public void ensureCapacity(int minCapacity) {
+>        if (minCapacity > elementData.length
+>            && !(elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA
+>                 && minCapacity <= DEFAULT_CAPACITY)) {
+>            modCount++;
+>            grow(minCapacity);
+>        }
+>    }
+>
+>```
+>
+>解决方案很简单，就如框架中代码写的一样，显示指定实例化器，首先使用默认无参构造策略DefaultInstantiatorStrategy，若创建对象失败再采用StdInstantiatorStrategy。
+>
+>## 4. 解决线程不安全
+>
+>由于Kryo线程不安全, 意味着每次序列化和反序列化时都需要实例化一次, 或借助ThreadLocal来维护以保证其线程安全。
+>
+>```java
+>private static final ThreadLocal<Kryo> kryos = new ThreadLocal<Kryo>() {
+>    protected Kryo initialValue() {
+>        Kryo kryo = new Kryo();
+>        // configure kryo instance, customize settings
+>        return kryo;
+>    };
+>};
+>// Somewhere else, use Kryo
+>Kryo k = kryos.get();
+>...
+>
+>```
+>
+>或者使用kryo提供的pool:
+>
+>```java
+>public KryoPool newKryoPool() {
+>        return new KryoPool.Builder(() -> {
+>            final Kryo kryo = new Kryo();
+>            kryo.setInstantiatorStrategy(new Kryo.DefaultInstantiatorStrategy(
+>                    new StdInstantiatorStrategy()));
+>            return kryo;
+>        }).softReferences().build();
+>}
+>
+>```
+>
+>## 5.解决增删字段
+>
+>kryo默认不支持Bean中增删字段
+>
+>在实际开发中，class增删字段是很常见的事情，但对于kryo来说，确是不支持的，而如果恰好需要(集群)缓存数据，那么这个问题会被放得更大。例如一个对象使用kryo序列化后，数据放入了缓存中，而这时候如果这个对象增删了一个属性，那么缓存中反序列化的时候就会报错。所以频繁使用缓存的场景，可以尽量避免kryo。
+>
+>不过现在的Kryo提供了兼容性的支持，使用CompatibleFieldSerializer.class，在kryo.writeClassAndObject时候写入的信息如下:
+>
+>```java
+>class name|field length|field1 name|field2 name|field1 value| filed2 value
+>```
+>
+>而在读入kryo.readClassAndObject时，会先读入field names，然后匹配当前反序列化类的field和顺序再构造结果。`对两种读写方式均有效`. 当然如果在做好缓存隔离的情况下，这一切都不用在意。
+>
+>```java
+>kryo.setDefaultSerializer(new SerializerFactory.CompatibleFieldSerializerFactory());
+>```
+>
+>也可以换成支持增减字段的其他框架, 如protoBuff.
+>
+>## 6. 使用模版类
+>
+>```java
+>public class KryoSerializer {
+>    private static final ThreadLocal<Kryo> kryoLocal = ThreadLocal.withInitial(() -> {
+>		Kryo kryo = new Kryo();
+>		kryo.setReferences(true);//检测循环依赖，默认值为true,避免版本变化显式设置
+>		kryo.setRegistrationRequired(false);//默认值为true，避免版本变化显式设置
+>		((DefaultInstantiatorStrategy) kryo.getInstantiatorStrategy())
+>			.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());//设定默认的实例化器
+>		return kryo;
+>	});
+>
+>	public byte[] serialize(Object obj) {
+>		Kryo kryo = getKryo();
+>		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+>		Output output = new Output(byteArrayOutputStream);
+>		kryo.writeClassAndObject(output, obj);
+>		output.close();
+>		return byteArrayOutputStream.toByteArray();
+>	}
+>
+>	public <T> T deserialize(byte[] bytes) {
+>		Kryo kryo = getKryo();
+>		Input input = new Input(new ByteArrayInputStream(bytes));
+>		return (T) kryo.readClassAndObject(input);
+>	}
+>
+>	private Kryo getKryo() {
+>		return kryoLocal.get();
+>	}
+>}
+>
+>```
+
+
+
 # 实战-逻辑删除时的唯一约束
 
 逻辑删除 唯一约束， 会导致虽然某条数据已经被删除，但是加了唯一约束的字段还是不能插入相同的数据？
@@ -6118,7 +6485,7 @@ However, with a `ByteString` you can give the method a subset of that data witho
 >
 > ![image-20210712161405655](fj问题及知识点记录.assets/image-20210712161405655.png)
 
-# mybatis plus 原理学习???
+
 
 # [Curator Framework的基本使用方法](https://www.cnblogs.com/jun-ma/p/4918137.html)
 
@@ -6202,6 +6569,20 @@ option+command+t
 >
 >-Dmaven.test.skip=true，不执行测试用例，也不编译测试用例类。**该配置 pom 中的配置优先级>mvn 命令行的优先级。**
 
+## idea项目误删恢复
+
+https://blog.csdn.net/yjt520557/article/details/85095883
+
+因为idea有历史记录的功能所以你对于项目的操作都有记录所以可以选择回退
+
+首先项目右键选择local history ->Show history 
+
+![img](fj问题及知识点记录.assets/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3lqdDUyMDU1Nw==,size_16,color_FFFFFF,t_70-20220324164045351.png)
+
+然后 选择你误操作之前的版本，然后点击返回就会恢复了
+
+![img](fj问题及知识点记录.assets/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3lqdDUyMDU1Nw==,size_16,color_FFFFFF,t_70.png)
+
 # UML 专题
 
 ## 绘制流程图中的注意事项
@@ -6221,10 +6602,6 @@ option+command+t
 >6、必要时应采用标注，以此来清晰地说明流程，标注要用专门的标注符号。
 >
 >7、处理流程须以单一入口和单一出口绘制，同一路径的指示箭头应只有一个。
-
-# [Could not write JSON: JsonObject; nested exception is com.fasterxml.jackson.databind.JsonMappingException: JsonObject](https://stackoverflow.com/questions/61169128/could-not-write-json-jsonobject-nested-exception-is-com-fasterxml-jackson-data)
-
-
 
 # 服务网格化
 
@@ -6378,3 +6755,80 @@ https://www.jianshu.com/p/c3ae61787a42
 
 
 
+# 存储
+
+## 块存储、文件存储、对象存储这三者的本质差别是什么？
+
+https://www.zhihu.com/question/21536660/answer/393094422
+
+>作者：刘洋
+>链接：https://www.zhihu.com/question/21536660/answer/393094422
+>来源：知乎
+>著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+>
+>**块存储**
+>
+>![img](fj问题及知识点记录.assets/v2-f359dd921a4b296e6e5c5216587d8b59_720w.jpg)
+>
+>块存储一般体现形式是卷或者硬盘（比如windows里面看到的c盘），数据是按字节来访问的，对于块存储而言，对里面存的数据内容和格式是完全一无所知的。好比上面图中，数据就像玉米粒一样堆放在块存储里，块存储只关心玉米粒进来和出去，不关心玉米粒之间的关系和用途。
+>
+>块存储只负责数据读取和写入，因此性能很高，适用于对响应时间要求高的系统。比如数据库等。
+>
+>**文件存储**
+>
+>![image-20220325201808835](fj问题及知识点记录.assets/image-20220325201808835.png)
+>
+>文件存储一般体现形式是目录和文件（比如C:\Users\Downloads\text.doc），数据以文件的方式存储和访问，按照目录结构进行组织。文件存储可以对数据进行一定的高级管理，比如在文件层面进行[访问权限控制](https://www.zhihu.com/search?q=访问权限控制&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A393094422})等。好比上面图中，数据像玉米粒一样组成玉米棒子，再对应到不同的玉米杆上，要找到某个玉米粒，先找到玉米杆，再找到玉米棒子，然后根据玉米粒在玉米棒子上的位置找到它。
+>
+>文件存储可以很方便的共享，因此用途非常广泛。比如常用的NFS、CIFS、ftp等都是基于文件存储的。
+>
+>**[对象存储](https://www.zhihu.com/search?q=对象存储&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A393094422})**
+>
+>![img](fj问题及知识点记录.assets/v2-3675fbd0824c938a022a5424e17d92e2_720w.jpg)
+>
+>对象存储一般体现形式是一个UUID（比如[https://www.youtube.com/watch?v=nAKxJbcec8U](https://link.zhihu.com/?target=https%3A//www.youtube.com/watch%3Fv%3DnAKxJbcec8U)），数据和元数据打包在一起作为一个整体对象存在一个超大池子里。对于对象访问，只需要报出它的UUID，就能立即找到它，但访问的时候对象是作为一个整体访问的。好比上面图中，数据的玉米粒被做成了玉米罐头，每个玉米罐头都有一个唯一出厂号，但是买卖罐头，都一次是一盒为单位。
+>
+>从设计之初衷（一般的对象存储都是基于哈希环之类的技术来实现），对象存储就可以非常简单的扩展到超大规模，因此非常适合数据量大、增速又很快的视频、图像等。
+
+## 对象存储有什么优势？
+
+https://www.zhihu.com/question/432864591
+
+>作者：知乎用户
+>链接：https://www.zhihu.com/question/432864591/answer/1607716021
+>来源：知乎
+>著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+>
+>其实块、文件、对象三种存储各有优劣势，没有谁比谁更先进一说，只有谁适用于某场景一说。
+>
+>先说对象存储吧。对象存储是指用一个对象ID对应一段数据。这个对象ID可以是一个URL，也可以是其它什么字符串，总之必须唯一。对应的这段数据，小则1个字节（当然这么小很不科学），大则几个G甚至更大（取决于对象存储产品的实际配置），但**不支持修改操作。也就是说，你不能像修改文件那样仅把其中的某一小段数据进行修改，或者在文件中间插入或者删除一段数据。若要进行任何修改，只能把该对象对应的所有数据全部重新写入。**
+>
+>这么设计的好处就是简化了对象ID到对象数据之间的映射关系（索引）。比如说，你需要维护对象ID到数据起始位置之间的映射关系即可，而不像文件那样需要考虑因修改、插入、删除文件中的某一小段数据而造成的复杂映射关系。正因为**映射关系简单**了，**同样规模的索引可以指向更大的数据规模，从而给人一种对象存储能存储更多数据的感觉。**其实，不是因为对象存储所采用的技术多么高明，而是因为它把很多制约其扩展性的功能都去掉了。可以这么说，**对象存储就是一个功能简化版的文件存储，它没有文件内容修改、文件锁、配额、用户/组属性、目录树等等。**
+>
+>因为**非结构化数据规模大，且不需要修改，特别符合对象存储的设计目标，所以对象存储比较适合存储非结构化数据。**又因为互联网应用涉及的非结构化数据比较多，因此最早大规模使用对象存储的就是互联网公司。例如，AWS S3起初就是给它自己的Amazon购物门户而研发的。
+
+>作者：知乎用户
+>链接：https://www.zhihu.com/question/432864591/answer/2301006016
+>来源：知乎
+>著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+>
+>由于提供的 API （基于bucket的访问控制和基于key的增删改查）很简单，也没有事务等劳什子的拖后腿。对象存储可以做到相对便宜，且扩展性超级强，同时还能维持不错的读写带宽。
+>
+>因此，现在基本成了云原生存储的事实标准。也成了存储计算分离型云原生数据库的一般后端。
+
+>作者：新爷话数据
+>链接：https://www.zhihu.com/question/432864591/answer/2263913918
+>来源：知乎
+>著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+>
+>其实说到对象存储的优势。首先要说一下，其实存储的形式，现在是对象、文件、块三个方式来保存、整理和呈现数据。
+>
+>那么，对象存储是什么呢？
+>
+>对象存储，也称为基于对象的存储，是一种扁平结构，其中的文件被拆分成多个部分并散布在多个硬件间。在对象存储中，数据会被分解为称为“对象”的离散单元，并保存在单个存储库中，而不是作为文件夹中的文件或服务器上的块来保存。
+>
+>对象存储卷会作为模块化单元来工作:每个卷都是一个自包含式存储库，均含有数据、允许在分布式系统上找到对象的唯一标识符以及描述数据的元数据。元数据很重要，对象存储元数据可以非常详细，并且能够存储与视频拍摄地点、所用相机和各个帧中特写的演员有关的信息。为了检索数据，存储操作系统会使用元数据和标识符，这样可以更好地分配负载，并允许管理员应用策略来 执行更强大的搜索。
+>
+>对象存储需要一个HTTP应用编程接口 (API)，以供大多数客户端(各种语言)使用。对象存储经济高效，可以轻松扩展，因而是公共云存储的理想之选。它是一个非常适用于静态数据的存储系统，其灵活性和扁平性意味着它可以通过扩展来存储极大量的数据。对象具有足够的信息供应用快速查找数 据，并且擅长存储非结构化数据。
+>
+>当然，它也存在缺点。无法修改对象 — 您必须一次性完整地写入对象。对象存储也不能很好地与传统数据库搭配使用，因为编写对象是一个缓慢的过程，编写应用以使用对象存储API并不像使用文件存储那么简单。
