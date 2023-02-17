@@ -2,7 +2,15 @@
 
 JVM?? 深入理解 java 虚拟机；
 
+### MAC 版配置 jvisualvm，插件配置与指令配置，一键搞定
 
+https://blog.csdn.net/weixin_41926301/article/details/120177364
+
+>jvisualvm 是一款官方提供的JVM监控工具。
+>
+>VisualVM 提供了一个可视界面，用于查看 Java 虚拟机 (Java Virtual Machine, JVM) 上运行的基于 Java 技术的应用程序的详细信息。VisualVM 对 Java Development Kit (JDK) 工具所检索的 JVM 软件相关数据进行组织，并通过一种使您可以快速查看有关多个 Java 应用程序的数据的方式提供该信息。您可以查看本地应用程序或远程主机上运行的应用程序的相关数据。此外，还可以捕获有关 JVM 软件实例的数据，并将该数据保存到本地系统，以供后期查看或与其他用户共享。
+>
+>
 
 ### [[g1垃圾回收器与cms垃圾回收器详解及最佳实践](https://my.oschina.net/begin01running/blog/1606677)](https://my.oschina.net/begin01running/blog/1606677)  (翻译于oracle java 的官方网站，实用性很强，并且容易理解)
 

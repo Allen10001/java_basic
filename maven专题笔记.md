@@ -1,4 +1,40 @@
+# 问题
+
+## [java.lang.IllegalArgumentException: Malformed \uxxxx encoding while mvn install](https://stackoverflow.com/questions/68003423/java-lang-illegalargumentexception-malformed-uxxxx-encoding-while-mvn-install)
+
+https://stackoverflow.com/questions/68003423/java-lang-illegalargumentexception-malformed-uxxxx-encoding-while-mvn-install
+
+>报错信息
+>
+>```less
+>java.lang.IllegalArgumentException: Malformed \uxxxx encoding.
+>```
+>
+>https://stackoverflow.com/a/69192826/13579261
+>
+>use:
+>
+>```csharp
+>grep -rnw /else/where -e '\u0000'
+>```
+>
+>and if you want all these files removed, pipe the file names to `xargs rm`:
+>
+>```bash
+>grep -lrnw /else/where -e '\u0000' | xargs rm
+>```
+
 # maven 专题(下设三级标题)
+
+### Maven Helper 安装使用
+
+https://blog.csdn.net/dhfzhishi/article/details/81952760
+
+>想要查看是否有依赖冲突也可以使用mvn dependency:tree -Dverbose -Dincludes=<groupId>:<artifactId>只查看关心的jar包，但是这样还是需要我执行命令，并且当项目比较复杂的时候，这个过程是比较漫长的。maven helper就能很好的解决这个问题。
+>一旦安装了Maven Helper插件，只要打开pom文件，就可以打开该pom文件的Dependency Analyzer视图（在文件打开之后，文件下面会多出这样一个tab），进入Dependency Analyzer视图之后有三个查看选项，分别是Conflicts(冲突)、All Dependencies as List(列表形式查看所有依赖)、All Dependencies as Tree(树结构查看所有依赖)。并且这个页面还支持搜索。很方便！并且使用该插件还能快速的执行maven命令。
+>
+>
+>
 
 ### maven-shade-plugin 入门指南
 
@@ -151,12 +187,12 @@ https://blog.csdn.net/yu102655/article/details/112490962
 https://blog.csdn.net/qq_43371556/article/details/123035114
 
 >1. 设置远程启动配置
->   在我们平时启动项目的坐边, 有一个 edit configuration的选项, 然后点击 + , 选择 **Remote JVM Debug** 选项
->   Name 为之后启动的名称,
->   Host 是远程服务器的 ip,
->   port: 用于远程socket 连接的端口, 注意不要和项目端口一致, 否则可能会导致项目启动失败
->   然后idea 会为我们自动生成一条命令行参数:
->   -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=10010
+>     在我们平时启动项目的坐边, 有一个 edit configuration的选项, 然后点击 + , 选择 **Remote JVM Debug** 选项
+>     Name 为之后启动的名称,
+>     Host 是远程服务器的 ip,
+>     port: 用于远程socket 连接的端口, 注意不要和项目端口一致, 否则可能会导致项目启动失败
+>     然后idea 会为我们自动生成一条命令行参数:
+>     -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=10010
 >
 >2.远程项目启动参数
 >如果是使用的 java -jar xxx.jar 启动, 只需要在原来的启动方式加入第1步生成的参数即可. 
