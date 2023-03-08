@@ -1,6 +1,6 @@
 # CompletableFuture 学习笔记
 
-## 文章
+# 文章
 
 
 
@@ -29,9 +29,15 @@
 >}
 >```
 
-### 使用示例
+## 使用示例
 
 https://github.com/ddean2009/learn-java-concurrency/blob/master/CompletableFuture/src/main/java/com/flydean/CompletableFutureUsage.java
+
+
+
+## CompletableFuture 异常优雅处理方式
+
+https://blog.csdn.net/kaoya156/article/details/125075464
 
 
 
