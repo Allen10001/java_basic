@@ -1,5 +1,9 @@
 # Guice学习笔记
 
+## 使用 tapesafeconfig 配合 guice 做配置注入
+
+https://github.com/racc/typesafeconfig-guice
+
 ## Google I/O 2009 - Big Modular Java with Guice
 
 https://www.youtube.com/watch?v=hBVJbzAagfs
