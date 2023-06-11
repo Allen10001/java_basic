@@ -1,6 +1,107 @@
+# 异步 http 请求
+
+## apache httpasyncclient
+
+## [异步 httpclient(httpasyncclient)的使用与总结](https://blog.csdn.net/ouyang111222/article/details/78884634) 
+
+apache 提供；
+
+maven 地址：https://mvnrepository.com/artifact/org.apache.httpcomponents/httpasyncclient
+
+>### 1. 前言
+>
+>应用层的网络模型有同步与异步。同步意味当前线程是阻塞的，只有本次请求完成后才能进行下一次请求;异步意味着所有的请求可以同时塞入缓冲区,不阻塞当前的线程;
+>
+>httpclient在4.x之后开始提供基于nio的异步版本 httpasyncclient, httpasyncclient借助了Java并发库和nio进行封装(虽说NIO是同步非阻塞IO,但是HttpAsyncClient提供了回调的机制,与netty类似,所以可以模拟类似于AIO的效果),其调用方式非常便捷,但是其中也有许多需要注意的地方。
+
+## AsyncHttpClient
+
+**一个新的异步http请求工具，基于 netty；**
+
+https://github.com/AsyncHttpClient/async-http-client
+
+>AsyncHttpClient instances are intended to be global resources that share the same lifecycle as the application. Typically, AHC will usually underperform if you create a new client for each request, as it will create new threads and connection pools for each. It's possible to create shared resources (EventLoop and Timer) beforehand and pass them to multiple client instances in the config. You'll then be responsible for closing those shared resources.  
+>
+> **AHC provides 2 APIs for defining requests: bound and unbound.** `AsyncHttpClient` and Dsl` provide methods for standard HTTP methods (POST, PUT, etc) but you can also pass a custom one.  
+>
+>```java
+>import org.asynchttpclient.*;
+>
+>// bound
+>Future<Response> whenResponse=asyncHttpClient.prepareGet("http://www.example.com/").execute();
+>
+>// unbound
+>        Request request=get("http://www.example.com/").build();
+>        Future<Response> whenResponse=asyncHttpClient.executeRequest(request);
+>```
+>
+>### Dealing with Responses
+>
+>#### Using custom AsyncHandlers
+>
+>`execute` methods can take an `org.asynchttpclient.AsyncHandler` to be notified on the different events, such as receiving the status, the headers and body chunks. When you don't specify one, AHC will use a **`org.asynchttpclient.AsyncCompletionHandler`;**
+>
+>`AsyncHandler` methods can let you abort processing early (return `AsyncHandler.State.ABORT`) and can let you return a computation result from `onCompleted` that will be used as the Future's result. See `AsyncCompletionHandler` implementation as an example.
+>
+>```java
+>import static org.asynchttpclient.Dsl.*;
+>
+>import org.asynchttpclient.*;
+>import io.netty.handler.codec.http.HttpHeaders;
+>
+>Future<Integer> whenStatusCode = asyncHttpClient.prepareGet("http://www.example.com/")
+>        .execute(new AsyncHandler<Integer> () {
+>            private Integer status;
+>            
+>            @Override
+>            public State onStatusReceived(HttpResponseStatus responseStatus) throws Exception {
+>                status = responseStatus.getStatusCode();
+>                return State.ABORT;
+>            }
+>            
+>            @Override
+>            public State onHeadersReceived(HttpHeaders headers) throws Exception {
+>              return State.ABORT;
+>            }
+>            
+>            @Override
+>            public State onBodyPartReceived(HttpResponseBodyPart bodyPart) throws Exception {
+>                 return State.ABORT;
+>            }
+>        
+>            @Override
+>            public Integer onCompleted() throws Exception{
+>                return status;
+>            }
+>        
+>            @Override
+>            public void onThrowable(Throwable t) {
+>                t.printStackTrace();
+>            }
+>        });
+>
+>        Integer statusCode = whenStatusCode.get();
+>```
+>
+>#### Using Continuations
+>
+>`ListenableFuture` has a `toCompletableFuture` method that returns a `CompletableFuture`. Beware that canceling this `CompletableFuture` won't properly cancel the ongoing request. There's a very good chance we'll return a `CompletionStage` instead in the next release.
+>
+>```java
+>CompletableFuture<Response> whenResponse=asyncHttpClient
+>        .prepareGet("http://www.example.com/")
+>        .execute()
+>        .toCompletableFuture()
+>        .exceptionally(t->{ /* Something wrong happened... */  })
+>        .thenApply(response->{ /*  Do something with the Response */ return resp;});
+>        whenResponse.join(); // wait for completion
+>```
+>
+>
 
 
-## httpclient
+
+# httpclient
 
 ### [总结httpclient资源释放和连接复用](https://www.cnblogs.com/pyx0/p/13125960.html)  有具体的实验过程，讲得很详细。
 
@@ -52,9 +153,9 @@
 > }
 >```
 
->
 
-### [HTTP协议的Keep-Alive 模式](https://www.jianshu.com/p/49551bda6619)  http 协议中的 keep-alive、长连接、短连接概念，http1.0 、http1.1、http2.0 版本的区别 讲得很清楚
+
+### [HTTP协议的Keep-Alive 模式](https://www.jianshu.com/p/49551bda6619)  http 协议中的 keep-alive、长连接、短连接概念，http1.0 、http1.1、http2.0 版本的区别 讲得很清楚 
 
 ># Keep-Alive模式
 >
@@ -168,16 +269,6 @@
 ### [HttpClient连接池设置引发的一次雪崩](https://blog.csdn.net/aaa31203/article/details/104687886)   排查问题的过程有点价值
 
 > 这篇文章排查问题的过程有点价值。
-
-
-
-### [异步httpclient(httpasyncclient)的使用与总结](https://blog.csdn.net/ouyang111222/article/details/78884634)
-
->### 1. 前言
->
->应用层的网络模型有同步与异步。同步意味当前线程是阻塞的，只有本次请求完成后才能进行下一次请求;异步意味着所有的请求可以同时塞入缓冲区,不阻塞当前的线程;
->
->httpclient在4.x之后开始提供基于nio的异步版本 httpasyncclient, httpasyncclient借助了Java并发库和nio进行封装(虽说NIO是同步非阻塞IO,但是HttpAsyncClient提供了回调的机制,与netty类似,所以可以模拟类似于AIO的效果),其调用方式非常便捷,但是其中也有许多需要注意的地方。
 
 ### [HttpClient Quick Start](http://hc.apache.org/httpcomponents-client-5.1.x/quickstart.html)  官网
 

@@ -2,7 +2,7 @@
 
 https://docs.google.com/document/d/1ijduF_tmHvBaUS7VBBU2ZN8_eEBiFaXXg9OI0_ZxCrA/edit#
 
-## Introduction
+## Introduction 
 
 This specification describes the objectives and functionality of the Java Caching Application Programming Interface (“API”). 
 The Java Caching API provides a common way for Java programs to create, access, update and remove entries from caches.
@@ -95,7 +95,7 @@ ClassLoader主要想可以将CacheManager划分不同的职责，例如：OrderC
 销毁其管理的所有**CacheManager**实例的源码如下：
 其实销毁逻辑并不在**CachingProvider**中实现，而是交给每个**CacheManager**实例去实现销毁
 
-#### 创建CachingProvider
+#### 创建 CachingProvider
 
 CachingProvider是由`javax.cache.Caching`创建的
 创建方式跟创建`CacheManager`类似
@@ -107,6 +107,8 @@ CachingProvider是由`javax.cache.Caching`创建的
 ### CacheManager
 
 `CacheManger`是一个接口，主要提供**创建，配置，获取，关闭和销毁缓存**的方法。
+
+**该接口的 createCache() 定义了缓存的具体实现；**
 
 - 同一个CacheManager管理的缓存，由同一个基础结构创建而成的，例如同一个`ClassLoader`和同一个`properties` （同一套配置），因为`ClassLoader`和`properties` 都是由**CachingProvider**管理的。
 - 同样的，也可以共同分享外部资源，例如存储在同一个存储空间里。
@@ -139,7 +141,7 @@ Javax提供了2个接口（`Configuration`,`CompleteConfiguration`）和一个�
 
 ### `Cache`接口
 
-这是剖析的第四个接口。这个接口定义对缓存的操作，因此会缓存的操作实现类应该继承此接口。`Cache`的内部接口`Entry<k,v>`才是定义缓存存储对象的接口。
+这是剖析的第四个接口。**这个接口定义对缓存的操作，因此会缓存的操作实现类应该继承此接口**。`Cache`的内部接口`Entry<k,v>`才是定义缓存存储对象的接口。
 这个接口是核心，很多逻辑都是在此接口定义的方法中触发的，例如**put()** 方法，会触发**CacheEntryCreatedListener**事件，如果是更新操作，还会触发**CacheEntryUpdatedListener**事件，如果是旧值过期还有触发**CacheEntryExpiredListener**事件。源码的剖析会在下文细讲。
 
 ![图片描述](JSR107缓存规范.assets/5d5c9c280001275f08540675.png)
@@ -222,5 +224,5 @@ public void simpleAPITypeEnforcement() {
 
 ## 总结
 
-本篇介绍了JAVA缓存的一些概念和规范。介绍了4个核心接口：`CacheingProvider`,`CacheManager`,`Cache`,`ExporyPolicy`和一个工具类`Caching`。
+本篇介绍了JAVA缓存的一些概念和规范。介绍了4个核心接口：**`CacheingProvider`,`CacheManager`,`Cache`,`ExporyPolicy`**和一个工具类**`Caching`。**
 

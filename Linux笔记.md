@@ -1,5 +1,11 @@
 # Linux 专题
 
+## known_hsots
+
+​       由于采用公私钥形式访问，客户端每次请求会在客户端本地~/.ssh/know_hosts做记录。SFTP 切换后，VIP后端real server地址如果变化过，跟据knows_hosts特性，系统使用同一ip，登录过一次后就会把ssh信息记录在本地的~/.ssh/known_hsots文件中，切换该系统后再用ssh访问这台主机就会出现冲突警告，需要手动删除修改known_hsots里面的内容。
+
+Know_hosts 作用：纪录连到对方时，对方给的 host key。每次连线时都会检查目前对方给的 host key 与纪录的 host key 是否相同，可以简单验证连结是否又被诈骗等相关事宜。
+
 ### h3 linux shell命令行选项与参数用法详解
 
 https://www.jb51.net/article/48691.htm

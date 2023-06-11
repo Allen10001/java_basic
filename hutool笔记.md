@@ -74,7 +74,7 @@ https://www.javajike.com/book/hutool/
 >}).start();
 >```
 >
->`createAll`方法会创建一个监听所有事件的WatchMonitor，同时在第二个参数中定义Watcher来负责处理这些变动。
+>`createAll`方法会创建一个监听所有事件的 WatchMonitor，同时在第二个参数中定义 Watcher 来负责处理这些变动。
 >
 >### 延迟处理监听事件
 >

@@ -89,7 +89,7 @@ final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
 
 ![](https://imgconvert.csdnimg.cn/aHR0cDovL2ltZy5ibG9nLmNzZG4ubmV0LzIwMTYwNDA4MTU1MTAyNzM0?x-oss-process=image/format,png)
 
-由上图可以看到，只有hash值的低4位参与了运算。
+由上图可以看到，**只有hash值的低4位参与了运算。**
 这样做很容易产生碰撞。设计者权衡了speed, utility, and quality，将高16位与低16位异或来减少这种影响。设计者考虑到现在的hashCode分布的已经很不错了，而且当发生较大碰撞时也用树形存储降低了冲突。仅仅异或一下，既减少了系统的开销，也不会造成的因为高位没有参与下标的计算(table长度比较小时)，从而引起的碰撞。
 
 ### 2. HashMap#tableSizeFor() 方法
@@ -120,11 +120,11 @@ static final int tableSizeFor(int cap) {
 
 之后变为 `0000 0000 0111 1111` ，最后 +1 ，自然变为 `0000 0000 1000 0000`了.
 
-示例图如下：
+示例图如下： 
 
 ![](https://imgconvert.csdnimg.cn/aHR0cDovL2ltZy5ibG9nLmNzZG4ubmV0LzIwMTYwNDA4MTgzNjUxMTEx?x-oss-process=image/format,png)
 
-通过这种方法找到 大于等于 cap 的最小的 2^n  的次方值, 作为 初始的table size。
+**通过这种方法找到 大于等于 cap 的最小的 2^n  的次方值, 作为 初始的table size。**
 
 ### 3. HashMap 扩容 HashMap#resize()
 
@@ -144,7 +144,7 @@ static final int tableSizeFor(int cap) {
             resize();
 ```
 
-可以看出，扩容的时机是 HashMap 添加元素后，集合中的元素数量大于 threshold 值会触发扩容的方法 `resize();`  。
+可以看出，**扩容的时机是 HashMap 添加元素后，集合中的元素数量大于 threshold 值会触发扩容的方法 `resize();`  。**
 
 * 扩容的大小
 
@@ -233,7 +233,7 @@ final Node<K,V>[] resize() {
              oldCap >= DEFAULT_INITIAL_CAPACITY)
         newThr = oldThr << 1; // double threshold
 ```
-可以看出，扩容的时候table数组容量 cap 和map集合元素阈值 threshold 都扩充为原来的两倍。
+可以看出，**扩容的时候table数组容量 cap 和map集合元素阈值 threshold 都扩充为原来的两倍。**
 
 ### 4. HashMap 中的几个变量
 

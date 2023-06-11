@@ -408,7 +408,7 @@ https://aiden-dong.gitee.io/2019/07/25/DI%E6%A1%86%E6%9E%B6Guice%E6%95%99%E7%A8%
 
 https://blog.csdn.net/sidongxue2/article/details/72626470
 
->注解:依赖注入@Inject * 依赖注入的方式有三种:[属性](https://www.jb51.cc/tag/shuxing/)注入,构造[方法](https://www.jb51.cc/tag/fangfa/)注入和setter[方法](https://www.jb51.cc/tag/fangfa/)注入. 
+>注解:依赖注入@Inject * 依赖注入的方式有三种: [属性](https://www.jb51.cc/tag/shuxing/)注入,构造[方法](https://www.jb51.cc/tag/fangfa/)注入和setter[方法](https://www.jb51.cc/tag/fangfa/)注入. 
 >
 >* Injector.injectMembers[方法](https://www.jb51.cc/tag/fangfa/)的[使用](https://m.jb51.cc/tag/shiyong/): * 即如果某个对象是new出来的,但是它里面的对象需要依赖需要注入,则可[使用](https://m.jb51.cc/tag/shiyong/)injectMembers[方法](https://www.jb51.cc/tag/fangfa/).
 
@@ -530,7 +530,7 @@ Guice comes with a built-in `@Singleton` scope that reuses the same instance dur
 
 *Overview of bindings in Guice*
 
-A **binding** is an object that corresponds to an entry in the [Guice map](https://github.com/google/guice/wiki/MentalModel.md). You add new entries into the Guice map by creating bindings.
+A **binding** is an object that corresponds to an entry in the [Guice map](https://github.com/google/guice/wiki/MentalModel.md). **You add new entries into the Guice map by creating bindings.**
 
 ## BindingAnnotations
 
@@ -746,6 +746,8 @@ public class BillingModule extends AbstractModule {
 ```
 
 In this example, the `DatabaseTransactionLog` must have a constructor that takes a single `DatabaseConnection` parameter. That constructor does not need an `@Inject` annotation. Guice will invoke that constructor to satisfy the binding.
+
+
 
 ## Built-in Bindings
 
