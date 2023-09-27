@@ -1,5 +1,126 @@
 # 异步 http 请求
 
+
+
+## AHC 原码分析（原创）
+
+### Channel 对象池管理工具
+
+org.asynchttpclient.netty.channel.DefaultChannelPool
+
+``` java
+  private void scheduleNewIdleChannelDetector(TimerTask task) {
+    // 向 timer 中队列添加新的 Timeout 对象
+    nettyTimer.newTimeout(task, cleanerPeriod, TimeUnit.MILLISECONDS);
+  }
+```
+
+TimerTask task 的实现：
+
+org.asynchttpclient.netty.channel.DefaultChannelPool.IdleChannelDetector
+
+```java
+private final class IdleChannelDetector implements TimerTask
+```
+
+IdleChannelDetector  中核心的 run 方法: 
+
+```java
+    /** 
+    1. TimerTask（IdleChannelDetector） 注册到 Timeout 上，Timeout 注册到 WheelTimer 上.
+    2. WheelTimer 检测到 Timeout 到期后，触发 Timeout 的 expire 方法（      io.netty.util.HashedWheelTimer.HashedWheelTimeout#expire）.
+    3. Timeout expire 方法触发 TimerTask 的 run 方法（本例中 org.asynchttpclient.netty.channel.DefaultChannelPool.IdleChannelDetector#run）。
+   */
+    public void run(Timeout timeout) {
+
+      if (isClosed.get())
+        return;
+
+      if (LOGGER.isDebugEnabled())
+        for (Object key : partitions.keySet()) {
+          int size = partitions.get(key).size();
+          if (size > 0) {
+            LOGGER.debug("Entry count for : {} : {}", key, size);
+          }
+        }
+
+      long start = unpreciseMillisTime();
+      int closedCount = 0;
+      int totalCount = 0;
+
+      for (ConcurrentLinkedDeque<IdleChannel> partition : partitions.values()) {
+
+        // store in intermediate unsynchronized lists to minimize
+        // the impact on the ConcurrentLinkedDeque
+        if (LOGGER.isDebugEnabled())
+          totalCount += partition.size();
+        
+				// 找出每个分区中过期的 channel 并删除.
+        List<IdleChannel> closedChannels = closeChannels(expiredChannels(partition, start));
+
+        if (!closedChannels.isEmpty()) {
+          partition.removeAll(closedChannels);
+          closedCount += closedChannels.size();
+        }
+      }
+
+      if (LOGGER.isDebugEnabled()) {
+        long duration = unpreciseMillisTime() - start;
+        if (closedCount > 0) {
+          LOGGER.debug("Closed {} connections out of {} in {} ms", closedCount, totalCount, duration);
+        }
+      }
+      // 注册下一个空闲 channel 探测任务.
+      scheduleNewIdleChannelDetector(timeout.task());
+    }
+```
+
+org.asynchttpclient.netty.channel.DefaultChannelPool#scheduleNewIdleChannelDetector
+
+```java
+  
+  private void scheduleNewIdleChannelDetector(TimerTask task) {
+    // 向时间轮中追加一个新的 Timeout
+    nettyTimer.newTimeout(task, cleanerPeriod, TimeUnit.MILLISECONDS);
+  }
+```
+
+向时间轮（HashedWheelTimer）中追加一个新的 Timeout 的具体实现.
+
+io.netty.util.HashedWheelTimer#newTimeout . 
+
+```java
+    @Override
+    public Timeout newTimeout(TimerTask task, long delay, TimeUnit unit) {
+        if (task == null) {
+            throw new NullPointerException("task");
+        }
+        if (unit == null) {
+            throw new NullPointerException("unit");
+        }
+
+        long pendingTimeoutsCount = pendingTimeouts.incrementAndGet();
+
+        if (maxPendingTimeouts > 0 && pendingTimeoutsCount > maxPendingTimeouts) {
+            pendingTimeouts.decrementAndGet();
+            throw new RejectedExecutionException("Number of pending timeouts ("
+                + pendingTimeoutsCount + ") is greater than or equal to maximum allowed pending "
+                + "timeouts (" + maxPendingTimeouts + ")");
+        }
+
+        start();
+
+        // Add the timeout to the timeout queue which will be processed on the next tick.
+        // During processing all the queued HashedWheelTimeouts will be added to the correct HashedWheelBucket.
+        long deadline = System.nanoTime() + unit.toNanos(delay) - startTime;
+        HashedWheelTimeout timeout = new HashedWheelTimeout(this, task, deadline);
+        timeouts.add(timeout);
+        return timeout;
+    }
+```
+
+
+
 ## apache httpasyncclient
 
 ## [异步 httpclient(httpasyncclient)的使用与总结](https://blog.csdn.net/ouyang111222/article/details/78884634) 

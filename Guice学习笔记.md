@@ -1,5 +1,244 @@
 # Guice学习笔记
 
+## Guice Injector 为类的静态成员注入实例的过程
+
+com.google.inject.Guice#createInjector(com.google.inject.Module...)
+
+```java
+public static Injector createInjector(Module... modules) {
+    return createInjector((Iterable)Arrays.asList(modules));
+}
+```
+
+com.google.inject.Guice#createInjector(java.lang.Iterable<? extends com.google.inject.Module>)
+
+```java
+public static Injector createInjector(Iterable<? extends Module> modules) {
+   	// 创建 injector 时候没指定 Stage, 默认就是 com.google.inject.Stage#DEVELOPMENT
+    return createInjector(Stage.DEVELOPMENT, modules);
+}
+```
+
+```java
+public static Injector createInjector(Stage stage, Iterable<? extends Module> modules) {
+     // 使用建造者模式指定  stage 和 modules 
+     return (new InternalInjectorCreator()).stage(stage).addModules(modules).build();
+}
+```
+
+com.google.inject.internal.InternalInjectorCreator#build
+
+```java
+    public Injector build() {
+        if (this.shellBuilder == null) {
+            throw new AssertionError("Already built, builders are not reusable.");
+        } else {
+            synchronized(this.shellBuilder.lock()) {
+                this.shells = this.shellBuilder.build(this.initializer, this.bindingData, this.stopwatch, this.errors);
+                this.stopwatch.resetAndLog("Injector construction");
+                this.initializeStatically();
+            }
+						// 针对个别类的静态变量需要 guice 注入的情况，guice 在创建 injector 的时候就会提前将这些静态变量注入到类中
+            this.injectDynamically();
+            return (Injector)(this.shellBuilder.getStage() == Stage.TOOL ? new InternalInjectorCreator.ToolStageInjector(this.primaryInjector()) : this.primaryInjector());
+        }
+    }
+```
+
+
+
+```java
+private void injectDynamically() {
+    // 这里主要针对一些类的静态成员 进行注入
+    this.injectionRequestProcessor.injectMembers();
+    this.stopwatch.resetAndLog("Static member injection");
+    this.initializer.injectAll(this.errors);
+    this.stopwatch.resetAndLog("Instance injection");
+    this.errors.throwCreationExceptionIfErrorsExist();
+    if (this.shellBuilder.getStage() != Stage.TOOL) {
+        Iterator var1 = this.shells.iterator();
+
+        while(var1.hasNext()) {
+            InjectorShell shell = (InjectorShell)var1.next();
+            this.loadEagerSingletons(shell.getInjector(), this.shellBuilder.getStage(), this.errors);
+        }
+
+        this.stopwatch.resetAndLog("Preloading singletons");
+    }
+
+    this.errors.throwCreationExceptionIfErrorsExist();
+}
+```
+
+类的静态成员进行注入 示例：
+
+```java
+        requestStaticInjection(HotSwitchLogger.class);
+
+        // AbstractTrace类进行静态成员注入
+        requestStaticInjection(AbstractIoMonitor.class);
+
+        requestStaticInjection(PluginDiffLogUtil.class);
+
+```
+
+```java
+void injectMembers() {
+    Iterator var1 = this.staticInjections.iterator();
+
+    while(var1.hasNext()) {
+       	// 每个需要 guice 注入静态字段的类都会创建一个 InjectionRequestProcessor.StaticInjection 对象
+        InjectionRequestProcessor.StaticInjection staticInjection = (InjectionRequestProcessor.StaticInjection)var1.next();
+        // 处理操作
+        staticInjection.injectMembers();
+    }
+}
+```
+
+com.google.inject.internal.InjectionRequestProcessor.StaticInjection#injectMembers
+
+```java
+void injectMembers() {
+            try {
+                this.injector.callInContext(new ContextualCallable<Void>() {
+                    public Void call(InternalContext context) {
+                        UnmodifiableIterator var2 = StaticInjection.this.memberInjectors.iterator();
+
+                        while(true) {
+                            SingleMemberInjector memberInjector;
+                            do {
+                                if (!var2.hasNext()) {
+                                    return null;
+                                }
+
+                                memberInjector = (SingleMemberInjector)var2.next();
+                            } while(StaticInjection.this.injector.options.stage == Stage.TOOL && !memberInjector.getInjectionPoint().isToolable());
+
+                            memberInjector.inject(InjectionRequestProcessor.this.errors, context, (Object)null);
+                        }
+                    }
+                });
+            } catch (ErrorsException var2) {
+                throw new AssertionError();
+            }
+        }
+```
+
+综上，**类的静态成员如果需要容器注入的话，在 Guice Injector 容器创建的时候都已经注入到类中了.**
+
+
+
+## 成员注入
+
+```java
+interface SingleMemberInjector {
+    void inject(Errors var1, InternalContext var2, Object var3);
+
+    InjectionPoint getInjectionPoint();
+}
+```
+
+### 字段注入
+
+com.google.inject.internal.SingleFieldInjector#inject
+
+```java
+final class SingleFieldInjector implements SingleMemberInjector {
+    final Field field;
+    final InjectionPoint injectionPoint;
+    final Dependency<?> dependency;
+    final BindingImpl<?> binding;
+
+    public SingleFieldInjector(InjectorImpl injector, InjectionPoint injectionPoint, Errors errors) throws ErrorsException {
+        this.injectionPoint = injectionPoint;
+        this.field = (Field)injectionPoint.getMember();
+        this.dependency = (Dependency)injectionPoint.getDependencies().get(0);
+        this.field.setAccessible(true);
+        this.binding = injector.getBindingOrThrow(this.dependency.getKey(), errors, JitLimitation.NO_JIT);
+    }
+
+    public InjectionPoint getInjectionPoint() {
+        return this.injectionPoint;
+    }
+
+  // 字段注入 方法调用
+public void inject(Errors errors, InternalContext context, Object o) {
+    errors = errors.withSource(this.dependency);
+    Dependency previous = context.pushDependency(this.dependency, this.binding.getSource());
+
+    try {
+        Object value = this.binding.getInternalFactory().get(errors, context, this.dependency, false);
+        this.field.set(o, value);
+    } catch (ErrorsException var10) {  // 字段注入的异常在这里
+        errors.withSource(this.injectionPoint).merge(var10.getErrors());
+    } catch (IllegalAccessException var11) {
+        throw new AssertionError(var11);
+    } finally {
+        context.popStateAndSetDependency(previous);
+    }
+
+}
+```
+
+
+
+### 方法注入
+
+com.google.inject.internal.SingleMethodInjector#inject
+
+```java
+    public void inject(Errors errors, InternalContext context, Object o) {
+        Object[] parameters;
+        try {
+            parameters = SingleParameterInjector.getAll(errors, context, this.parameterInjectors);
+        } catch (ErrorsException var7) {
+            errors.merge(var7.getErrors());
+            return;
+        }
+
+        try {
+            this.methodInvoker.invoke(o, parameters);
+        } catch (IllegalAccessException var8) { 
+          // 方法注入异常处理
+            throw new AssertionError(var8);
+        } catch (InvocationTargetException var9) {
+            Throwable cause = var9.getCause() != null ? var9.getCause() : var9;
+            errors.withSource(this.injectionPoint).errorInjectingMethod((Throwable)cause);
+        }
+
+    }
+```
+
+
+
+## bing().toInstance()
+
+### 现象1.
+
+ HttpService 是多例的话，但是 在 injector 容器里面 定义了 `binder.bind(HttpService.class).toInstance(httpServiceBindingIntance);`
+
+那 injector.getInstance(HttpService.class); 得到的是同一个实例，都是 httpServiceBindingIntance。如果没有定义 
+
+`binder.bind(HttpService.class).toInstance(httpServiceBindingIntance);` 则得到的是不同实例。
+
+![image-20230731210948590](Guice学习笔记.assets/image-20230731210948590.png)
+
+### 现象2. 
+
+通过@Injector 注解注入的也和 `binder.bind(HttpService.class).toInstance(httpServiceBindingIntance);` 中定义的 HttpService 实例相同.
+
+![image-20230731211649886](Guice学习笔记.assets/image-20230731211649886.png)
+
+### 结论
+
+injector 容器中使用 
+
+`binder.bind(HttpService.class).toInstance(httpServiceBindingIntance);`
+
+定义了类到实例的绑定后，就会以 HttpService.class 为key， httpServiceBindingIntance 为value 放入 injector 容器中，后面不管怎么获取都是这个实例, 不管 HttpService.class 类上是否注解了 @Sington .
+
+
+
 ## 使用 tapesafeconfig 配合 guice 做配置注入
 
 https://github.com/racc/typesafeconfig-guice
@@ -63,7 +302,7 @@ https://www.bilibili.com/video/BV1qr4y137qW
 
 ### Provider
 
-只要**标记注入容器中的对象**，都可以通过 Provider 类去获取，并且只有在provider.get() 方法调用的时候，被注入的类对象才会真正的实例化并注入。
+只要**标记注入容器中的对象**，都可以通过 Provider 类去获取，并且只有在provider.get() 方法调用的时候，被注入的类对象才会真正的**实例化并注入**。 
 
 ![image-20230104215309000](Guice学习笔记.assets/image-20230104215309000.png)
 
@@ -98,6 +337,16 @@ https://www.bilibili.com/video/BV1qr4y137qW
 <img src="Guice学习笔记.assets/image-20230104223705797.png" alt="image-20230104223705797" style="zoom:50%;" />
 
 # 文章
+
+## [【Guice】Guice入门 ](https://www.cnblogs.com/z00377750/p/14046190.html)
+
+学习地址[#](https://www.cnblogs.com/z00377750/p/14046190.html#1606793653)
+
+[官方指导文档](https://github.com/google/guice/wiki/Motivation)
+
+[慕课网使用Google Guice实现依赖注入](https://www.imooc.com/learn/901)
+
+https://www.cnblogs.com/z00377750/p/14046190.html
 
 ## DI | Guice教程篇
 
@@ -252,7 +501,7 @@ https://aiden-dong.gitee.io/2019/07/25/DI%E6%A1%86%E6%9E%B6Guice%E6%95%99%E7%A8%
 >
 >#### `Provider<T>` 派生类
 >
->当我们的 `@Provides` 方法开始变得复杂时，就可以定义类来进行封装。 提供程序类实现了Guice的Provider接口，这是一个用于提供值的简单通用接口：
+>当我们的 `@Provides` 方法开始变得复杂时，就可以定义类来进行封装。 提供程序类实现了Guice的Provider接口，这是一个用于提供值的简单通用接口： 
 >
 >```
 >public interface Provider<T> {
@@ -516,7 +765,7 @@ https://github.com/google/guice/wiki/MentalModel
 >There are two parts to using Guice:
 >
 >1. **Configuration**: your application adds things into the "Guice map".
->2. **Injection**: your application asks Guice to create and retrieve objects from the map.
+>2. **Injection**: your application asks Guice **to create and retrieve objects** from the map.
 >
 >
 
@@ -534,7 +783,7 @@ A **binding** is an object that corresponds to an entry in the [Guice map](https
 
 ## BindingAnnotations
 
-Occasionally you'll want multiple bindings for the same type. For example, you might want both a PayPal credit card processor and a Google Checkout processor. To enable this, bindings support an optional *binding annotation*. The annotation and type together uniquely identify a binding. **This pair is called a *key*.**
+Occasionally you'll want multiple bindings for the same type. For example, you might want both a PayPal credit card processor and a Google Checkout processor. To enable this, bindings support an optional *binding annotation*. The annotation and type together uniquely identify a binding. **This pair is called a *key*.**  
 
 **To depend on the annotated binding, apply the annotation to the injected parameter:**
 
@@ -755,11 +1004,11 @@ In this example, the `DatabaseTransactionLog` must have a constructor that takes
 
 ***Bindings that are created automatically by Guice***
 
-When the injector needs an instance of a type, it needs a binding. The bindings in modules are called *explicit bindings*, and the injector uses them whenever they're available. **If a type is needed but there isn't an explicit binding, the injector will attempt to create a *Just-In-Time binding*. These are also known as *JIT bindings* or *implicit bindings*.**
+**When the injector needs an instance of a type, it needs a binding.** The bindings in modules are called *explicit bindings*, and the injector uses them whenever they're available. **If a type is needed but there isn't an explicit binding, the injector will attempt to create a *Just-In-Time binding*. These are also known as *JIT bindings* or *implicit bindings*.**
 
 ## @Inject Constructors
 
-Guice can create bindings for concrete types by using the type's *injectable constructor*. Guice considers a constructor injectable if:
+**Guice can create bindings for concrete types by using the type's *injectable constructor*.** Guice considers a constructor injectable if:
 
 - (**recommended**) The constructor is explicitly annotated with `@Inject` (both `com.google.inject.Inject` and `javax.inject.Inject` are supported).
 - or, the constructor takes zero arguments, and

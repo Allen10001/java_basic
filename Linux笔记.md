@@ -1,5 +1,39 @@
 # Linux 专题
 
+## Linux TOP 命令
+
+https://zhuanlan.zhihu.com/p/458010111
+
+>### 线程运行情况
+>
+>top 命令默认显示的进程的运行情况，在 top 命令执行后，按大写的H，**可进入线程执行情况页面，再按一次H则会到进程展示。或者在启动时对top加参数`top -H`**
+>
+>### 二、arthas 命令及示例 【阿尔萨斯】
+>
+>这里只介绍比较常用的几种命令，其他请参考教程。java -jar arthas-boot.jar启动arthas，并选择相关进程attach。
+>
+>1. dashboard
+>
+>当前系统的实时数据面板，默认每五秒刷新一次。-i 指定刷新间隔时间。打印了线程ID、占用cpu及耗时
+>
+>![image-20230625213357180](Linux笔记.assets/image-20230625213357180.png)
+>
+>2. thread
+>
+>thread -n 3 打印占用cpu最多的3个线程。thread 1217 可查看线程1217的具体信息
+>
+>![image-20230625213426763](Linux笔记.assets/image-20230625213426763.png)
+>
+>3. trace
+>
+>trace方法内部调用路径，并输出方法路径上的每个节点上耗时。可以不断trace调用链，追踪耗时症结。
+>
+>异步调用并将结果保存 trace com.jd.broadway.processors.rulers.NewHpMultiMaterialDiversityRuler rule >> /export/Logs/arthas/test.out &
+>
+>![image-20230625213449130](Linux笔记.assets/image-20230625213449130.png)
+>
+>
+
 ## known_hsots
 
 ​       由于采用公私钥形式访问，客户端每次请求会在客户端本地~/.ssh/know_hosts做记录。SFTP 切换后，VIP后端real server地址如果变化过，跟据knows_hosts特性，系统使用同一ip，登录过一次后就会把ssh信息记录在本地的~/.ssh/known_hsots文件中，切换该系统后再用ssh访问这台主机就会出现冲突警告，需要手动删除修改known_hsots里面的内容。

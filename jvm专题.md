@@ -1,5 +1,46 @@
 ## JVM 学习专题      #####
 
+### JVM调优 之 调整G1HeapRegionSize
+
+https://www.jianshu.com/p/0955113a12db
+
+>我们知道 G1 垃圾收集器与之前垃圾收集器最大的不同就是化整为零，将内存区域分成多个 Region，每个Region可能是E、S、O、H的一种，如图5所示。
+>
+>**其中H代表Humongous，表示这些Region存储的是巨大对象（humongous object，H-obj），即大小大于等于region一半的对象。H-obj有如下几个特征：**
+>
+>- **H-obj直接分配到老年代，防止被反复拷贝移动。**
+>- **H-obj在global concurrent marking阶段的cleanup 和 full GC阶段回收。**
+>- **在分配H-obj之前先检查是否超过 initiating heap occupancy percent和the marking threshold, 如果超过的话，就启动global concurrent marking，为的是提早回收，防止 evacuation failures 和 full GC。**
+>
+>
+
+### G1调优常用参数及其作用
+
+https://blog.csdn.net/qq_27529917/article/details/87072130
+
+>**Region大小：**用 -XX:G1HeapRegionSize 来指定，若未指定则默认最多生成 2048 块，每块的大小需要为2的幂次方，如1,2,4,8,16,32，最大值为32M。**Region 的大小主要是关系到Humongous Object的判定，当一个对象超过Region大小的一半时，则为巨型对象，那么其会至少独占一个Region，如果一个放不下，会占用连续的多个Region。当一个Humongous Region放入了一个巨型对象，可能还有不少剩余空间，但是不能用于存放其他对象，这些空间就浪费了。所以如果应用里有很多大小差不多的巨型对象，可以适当调整Region的大小，尽量让他们以普通对象的形式分配，合理利用Region空间。**
+
+
+
+### 关于G1收集器参数InitiatingHeapOccupancyPercent的正确认知
+
+https://doudaxia.club/index.php/archives/212/
+
+>## 问题
+>
+>前两天，一个群友在群中提出一个疑问：
+>
+>G1里的 XX:InitiatingHeapOccupancyPercent，默认是45。他看网上有两种说法，一种是整个堆占用率超过45%时开始并发标记周期；另一种说是old region占用超过45%时开始并发标记周期；
+>
+>正好我也疑惑这个问题，可以去做一个探究。
+>
+>## 结论
+>
+>**如果你使用的JDK版本在8b12之前，那么文章开头的第一种说法是正确的，即XX:InitiatingHeapOccupancyPercent是整个堆使用量与堆总体容量的比值；**
+>**如果你使用的JDK版本在8b12之后（包括大版本9、10、11....），那么文章开头第二种说法是正确的，即XX:InitiatingHeapOccupancyPercent是老年代大小与堆总体容量的比值。**
+
+
+
 ### pref生成火焰图
 
 https://www.jianshu.com/p/655da1d89041?utm_campaign
@@ -481,7 +522,7 @@ https://juejin.im/post/5b8d2a5551882542ba1ddcf8
 >
 >- Young GC: 只收集young gen的GC，**Young GC**还有种说法就叫做 **"Minor GC"**
 >- Old GC: 只收集old gen的GC。只有垃圾收集器CMS的 concurrent collection 是这个模式
->- Mixed GC: 收集整个young gen 以及部分old gen的GC。只有垃圾收集器 G1有这个模式
+>- **Mixed GC: 收集整个young gen 以及部分old gen的GC。只有垃圾收集器 G1有这个模式**
 >
 >### Full GC的触发条件
 >

@@ -17,9 +17,9 @@ https://blog.csdn.net/CF779/article/details/112269347
 >**解决方案：**
 >
 >1. 点击**file > Setting**进入设置
->   ![alt](idea问题记录.assets/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0NGNzc5,size_16,color_FFFFFF,t_70-20210806151939875.png)
+>     ![alt](idea问题记录.assets/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0NGNzc5,size_16,color_FFFFFF,t_70-20210806151939875.png)
 >2. 找到**lgnored file**，**把右边已选中的选项取消勾选**，然后点击 ok
->   ![alt](idea问题记录.assets/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0NGNzc5,size_16,color_FFFFFF,t_70.png)
+>     ![alt](idea问题记录.assets/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0NGNzc5,size_16,color_FFFFFF,t_70.png)
 >3. 建议再点击右上角Maven中的刷新一下，这样pom.xml 文件就被变回来了哦
 
 ## idea for Mac try catch 快捷键
@@ -50,4 +50,3 @@ https://blog.csdn.net/yjt520557/article/details/85095883
 
 ![img](idea问题记录.assets/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3lqdDUyMDU1Nw==,size_16,color_FFFFFF,t_70.png)
 
-# 
