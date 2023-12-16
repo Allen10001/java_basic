@@ -1,10 +1,154 @@
 ## JVM 学习专题      #####
 
+### 堆内存分析工具 JXRay
+
+https://jxray.com/documentation#where_memory_goes_by_class
+
+> #### OBTAINING A HEAP DUMP
+>
+> jmap -dump:live,format=b,file=myheapdump.hprof <target JVM pid>
+>
+> The script expects that the JDK `bin` directory is on your `PATH`. Alternatively, you can specify the JDK location to the script via the `JXRAY_JAVA_HOME` environment variable, that should point to your JDK’s root directory. To adjust the JVM settings (e.g. if your dump is very big and you need to give the JVM running JXRay more memory), you may either
+>
+> - use the environment variable JXRAY_JAVA_FLAGS, for example JXRAY_JAVA_FLAGS=”-Xms30g -Xmx30g” ; jxray.sh myheapdump.hprof
+> - Pass the JVM flags directly to the script using the -J prefix, for example jxray.sh -J-Xms30g -J-Xmx30g myheapdump.hprof myreport.html 
+>
+> 1002 阅读位置
+>
+> ![image-20231102203003528](jvm%E4%B8%93%E9%A2%98.assets/image-20231102203003528.png)
+
+
+
+### JVM堆内存导致的FGC问题排查
+
+https://cloud.tencent.com/developer/article/2194733
+
+>## **问题定位**
+>
+>再次分析堆内存，会发现虽然乍一看，有一部分对象占据空间是比较大的，这部分之所以没有列为我的怀疑目标，是因为这是我故意设置的很大的缓存，并且过期时间设置的比较长。
+>
+>经过将这部分缓存去除掉之后，会发现问题基本解决掉了。
+>
+>到此，问题确实找到了。上面其实优化了那么多，其实是在为代码上的错误背黑锅。
+>
+>## **代码优化**
+>
+>缓存我使用的 Caffeine，缓存大小基本上有600M左右，过期时间6分钟。
+>
+>如何将这部分数据缓存在堆内存，并且在内存一定的情况下，还要控制gc表现，其实是个问题。为此，我再次登录了我的StackOverFlow账号。
+>
+>得到Caffeine作者的建议：
+>
+>**GC 在这种负载下，表现不会特别好。可能需要加大机器的内存，以及调整G1的年轻代大小。或者，可以使用堆外缓存：OHC 或者 ChronicleMap。**
+>
+>说的很好。但是我选择最简单的办法，减少缓存的大小和过期时间。
+>
+>观察结果，问题解决。
+>
+>## **总结**
+>
+>经过此次的jvm问题，有几个感悟。
+>
+>1、jvm是最后的手段，首先看代码
+>
+>2、不要使用网上所谓的”完美“jvm参数
+>
+>3、垃圾回收器默认不加参数其实很优异，调整单个参数需要结合整体看表现。
+>
+>
+
+### JVM堆外内存导致的FGC问题排查 ??
+
+https://mp.weixin.qq.com/s?__biz=MzIwMjIzNzYxNg==&amp;mid=2247486306&amp;idx=1&amp;sn=240a84396dad4d18538aea97abf14ea0&amp;chksm=96e0f8bda19771abecf2fc3effbf07bafbdce9b46aad76e86a760cb6f116afee6ae2c7dbfc2c&amp;scene=21#wechat_redirect
+
+>
+>
+>
+
+### Java NIO 学习笔记三（堆外内存之 DirectByteBuffer 详解） ??
+
+https://blog.csdn.net/u013096088/article/details/78774627
+
+>
+>
+>
+
+### 堆外内存分析
+
+https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=173081792
+
+>1.使用堆外内存的原因：
+>
+>**避免与操作系统交互时 jvm gc 移动某一段buffer的位置，导致io操作使用不正确的地址**[1]
+>
+>推论：需要 buffer 的系统调用均需要堆外内存，要么是显式声明在java代码里（DirectBytebuffer），要么是隐含在c代码中（BufferedOutputStream）
+>
+>2.使用google-perf工具分析c语言调用与堆栈，确定问题[2][3]
+>
+>（1）安装流程（具体步骤在参考资料中，这里列出主要步骤）
+>
+>- 安装lib-uwind库
+>- 安装google-ppfor工具
+>- 增加环境变量，改变jvm使用的malloc库
+>- 运行iotdb一段时间
+>- 使用google-ppfor生成分析文件
+>
+>（2）8存储组，50设备，每个设备100个传感器下内存正常，堆外内存使用不多，在合理范围内，需要能够复现堆外内存的场景
+>
+> ![img](jvm%E4%B8%93%E9%A2%98.assets/image2021-3-8_9-16-44.png)
+>
+>注：图中红框就是申请堆外内存的部分
+>
+>（3）增加压力后出现JVM crash，是GC执行过程中的NULL指针，怀疑工具库实现有bug，这也意味着生产环境不能贸然使用该工具
+>
+>![img](jvm%E4%B8%93%E9%A2%98.assets/image2021-3-8_9-17-3.png)
+>
+> 3.每一个 IO thread 都会 cache 一部分的堆外buffer，不会释放，所以解决堆外内存多有两个方法[4]：
+>
+>（1）减少IO线程
+>
+>（2）jdk版本大于1.8后可以使用-Djdk.nio.maxCachedBufferSize去限制cache buffer的使用
+>
+>如果不限制，则每次申请direct buffer就会cache，除非使用了cache中的buffer，也就是说堆外内存只增不降
+>
+>由此做一组实验，其他参数相同的情况下，增加thrift线程数（也就是client数），看堆外内存使用情况：
+>
+>| 线程数 | 堆外内存使用 |
+>| ------ | ------------ |
+>| 50     | 270MB        |
+>| 100    | 300MB        |
+>| 200    | 320MB        |
+>| 300    | 350MB        |
+>
+>可以看出thrift线程数对堆外内存有影响，但是不是那么大，别的IO线程可能占了更大的部分，需要进一步分析。
+>
+>0.11 版本 thrift 线程池很大小，田原已经限制了WAL总的堆外内存池，很大程度上解决了问题
+>
+>4. 堆外内存的主要来源[5]
+>
+>- 线程与 sockets
+>- direct ByteBuffers 的使用
+>- 第三方库使用native内存（可以从google-ppfor中看出来）
+>
+>6.排查方法总结
+>
+>（1）使用 jxray（见5）分析dump的堆，查看第18项和22项（Off-heap memory used by java.nio.DirectByteBuffers and Thread stacks），排查IO使用的buffer和线程栈空间
+>
+>（2）使用google-pprof（见2）**生成本地方法内存使用图**，查看本地方法（比如压缩，编码等）使用的内存空间
+
+### 堆内存分析
+
+堆 dump 文件(只dump堆内存活对象的前提下)比较大(4G~20G+)，一般的工具如jvisualvm/MAT很难打开分析，有些商业性分析工具如JXRay（https://jxray.com/)可以使用trial模式进行分析，虽然无法像MAT那样进行搜索和引用关系追踪，但跑出来的可以发现一些主要的问题.  
+
+
+
+
+
 ### JVM调优 之 调整G1HeapRegionSize
 
 https://www.jianshu.com/p/0955113a12db
 
->我们知道 G1 垃圾收集器与之前垃圾收集器最大的不同就是化整为零，将内存区域分成多个 Region，每个Region可能是E、S、O、H的一种，如图5所示。
+>我们知道 G1 垃圾收集器与之前垃圾收集器最大的不同就是化整为零，将内存区域分成多个 Region，每个Region可能是E、S、O、H的一种，如图5所示。 
 >
 >**其中H代表Humongous，表示这些Region存储的是巨大对象（humongous object，H-obj），即大小大于等于region一半的对象。H-obj有如下几个特征：**
 >
